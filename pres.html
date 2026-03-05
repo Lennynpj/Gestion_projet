@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ProPresent — Gestion de Projet</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-dark: #0a0a0f;
+  --bg-card: #12121a;
+  --bg-surface: #1a1a26;
+  --accent-primary: #6c5ce7;
+  --accent-secondary: #00cec9;
+  --accent-warm: #fd79a8;
+  --accent-gold: #ffd32a;
+  --text-primary: #f0f0f5;
+  --text-secondary: #8a8a9a;
+  --text-muted: #4a4a5a;
+  --border: rgba(255,255,255,0.06);
+  --glass: rgba(255,255,255,0.03);
+  --shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  user-select: none;
+}
+
+/* ═══════════════════════════════════════
+   REMOTE CONTROLLER MODE (mobile)
+   ═══════════════════════════════════════ */
+body.remote-mode {
+  overflow: auto;
+  background: linear-gradient(180deg, #0a0a0f 0%, #1a1033 100%);
+}
+
+#remoteUI {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  gap: 20px;
+}
+
+body.remote-mode #remoteUI { display: flex; }
+body.remote-mode #toolbar,
+body.remote-mode #sidebar,
+body.remote-mode #canvasArea,
+body.remote-mode #qrPanel,
+body.remote-mode #p2pModal { display: none !important; }
+
+.remote-header {
+  text-align: center;
+}
+.remote-header h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px; margin-bottom: 4px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.remote-header p { font-size: 14px; color: var(--text-secondary); }
+
+.remote-status {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 30px;
+  font-size: 13px; font-weight: 500;
+}
+.remote-status.connecting {
+  background: rgba(255,211,42,0.1); color: var(--accent-gold);
+}
+.remote-status.connected {
+  background: rgba(0,206,201,0.1); color: var(--accent-secondary);
+}
+.remote-status.error {
+  background: rgba(253,121,168,0.1); color: var(--accent-warm);
+}
+.remote-status .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.remote-slide-display {
+  background: var(--bg-surface);
+  border-radius: 20px;
+  padding: 30px 40px;
+  text-align: center;
+  border: 1px solid var(--border);
+  width: 100%; max-width: 360px;
+}
+.remote-slide-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 72px; font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  line-height: 1;
+}
+.remote-slide-title {
+  font-size: 18px; font-weight: 500;
+  margin-top: 8px; color: var(--text-primary);
+}
+.remote-slide-total {
+  font-size: 13px; color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.remote-nav {
+  display: flex; gap: 16px; width: 100%; max-width: 360px;
+}
+.remote-nav button {
+  flex: 1; height: 80px; border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 32px; cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.remote-nav button:active {
+  transform: scale(0.95);
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.remote-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px; width: 100%; max-width: 360px;
+}
+.remote-grid button {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.remote-grid button.current {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+.remote-grid button:active { transform: scale(0.92); }
+
+.remote-actions {
+  display: flex; gap: 10px;
+}
+.remote-actions button {
+  padding: 12px 24px; border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: 'Outfit'; font-size: 14px;
+  cursor: pointer; transition: 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.remote-actions button:active {
+  background: var(--accent-primary); color:#fff;
+}
+
+/* ═══════════════════════════════════════
+   TOOLBAR
+   ═══════════════════════════════════════ */
+#toolbar {
+  position: fixed; top:0; left:0; right:0; z-index:1000;
+  height: 56px;
+  background: rgba(10,10,15,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px;
+  gap: 8px;
+}
+
+#toolbar .logo {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  color: var(--accent-primary);
+  margin-right: 16px;
+  letter-spacing: -0.5px;
+}
+
+.tb-sep { width:1px; height:28px; background: var(--border); margin: 0 8px; }
+
+.tb-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px;
+  background: transparent; border: 1px solid transparent;
+  color: var(--text-secondary); font-size: 13px;
+  font-family: 'Outfit', sans-serif; cursor: pointer;
+  transition: all 0.2s; white-space: nowrap;
+}
+.tb-btn:hover { background: var(--glass); border-color: var(--border); color: var(--text-primary); }
+.tb-btn.active { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+.tb-btn svg { width:16px; height:16px; flex-shrink:0; }
+
+.tb-btn.p2p-live {
+  background: linear-gradient(135deg, rgba(108,92,231,0.2), rgba(0,206,201,0.2));
+  border-color: rgba(108,92,231,0.4);
+  color: var(--accent-secondary);
+  position: relative;
+}
+.tb-btn.p2p-live .live-dot {
+  width:6px; height:6px; border-radius:50%;
+  background: var(--accent-secondary);
+  animation: pulse 1s infinite;
+}
+.tb-btn.p2p-live.has-peers {
+  background: linear-gradient(135deg, rgba(0,206,201,0.2), rgba(0,206,201,0.3));
+  border-color: var(--accent-secondary);
+}
+
+.tb-page-nav {
+  display: flex; align-items: center; gap: 8px;
+  margin-left: auto;
+  font-size: 14px; color: var(--text-secondary);
+}
+.tb-page-nav button {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--glass); border: 1px solid var(--border);
+  color: var(--text-primary); cursor: pointer; display:flex;
+  align-items:center; justify-content:center; transition:0.2s;
+}
+.tb-page-nav button:hover { background: var(--accent-primary); border-color: var(--accent-primary); }
+
+/* ═══════════════════════════════════════
+   P2P MODAL
+   ═══════════════════════════════════════ */
+#p2pModal {
+  display: none; position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(10px);
+  align-items: center; justify-content: center;
+}
+#p2pModal.open { display:flex; }
+
+.p2p-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 40px;
+  max-width: 480px;
+  width: 90%;
+  text-align: center;
+  position: relative;
+  animation: modalIn 0.3s ease;
+}
+@keyframes modalIn { from { transform: scale(0.9); opacity:0; } to { transform:scale(1); opacity:1; } }
+
+.p2p-card .close-btn {
+  position:absolute; top:16px; right:16px;
+  width:36px; height:36px; border-radius:10px;
+  background: var(--glass); border:1px solid var(--border);
+  color: var(--text-secondary); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; transition:0.2s;
+}
+.p2p-card .close-btn:hover { background:var(--accent-warm); color:#fff; border-color:var(--accent-warm); }
+
+.p2p-card h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 26px; margin-bottom: 6px;
+}
+.p2p-card .subtitle {
+  font-size: 14px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.5;
+}
+
+.p2p-qr-wrap {
+  background: var(--bg-surface);
+  border-radius: 20px;
+  padding: 24px;
+  display: inline-block;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+.p2p-qr-wrap canvas, .p2p-qr-wrap img { border-radius: 8px; }
+
+.p2p-room-code {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-bottom: 20px;
+}
+.p2p-room-code .code {
+  font-family: 'Space Mono', monospace;
+  font-size: 22px; font-weight: 700;
+  color: var(--accent-primary);
+  background: var(--bg-surface);
+  padding: 8px 20px; border-radius: 10px;
+  border: 1px solid var(--border);
+  letter-spacing: 3px;
+}
+.p2p-room-code .copy-btn {
+  padding: 8px 14px; border-radius: 8px;
+  background: var(--accent-primary); border:none;
+  color:#fff; cursor:pointer; font-family:'Outfit';
+  font-size:12px; transition:0.2s;
+}
+.p2p-room-code .copy-btn:hover { opacity:0.8; }
+
+.p2p-status {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 20px; border-radius: 12px;
+  font-size: 13px; margin-bottom: 16px;
+}
+.p2p-status.waiting { background:rgba(255,211,42,0.08); color:var(--accent-gold); }
+.p2p-status.ready { background:rgba(0,206,201,0.08); color:var(--accent-secondary); }
+
+.p2p-peers {
+  font-size: 13px; color: var(--text-muted);
+}
+.p2p-peers strong { color: var(--accent-secondary); }
+
+.p2p-instructions {
+  margin-top:20px; text-align:left;
+  background: var(--bg-surface); border-radius:12px;
+  padding: 16px; font-size:13px; color:var(--text-secondary); line-height:1.6;
+}
+.p2p-instructions .step {
+  display:flex; gap:10px; margin-bottom:8px; align-items:flex-start;
+}
+.p2p-instructions .step-num {
+  width:22px; height:22px; border-radius:6px;
+  background:var(--accent-primary); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; flex-shrink:0;
+}
+
+/* ═══════════════════════════════════════
+   SIDEBAR
+   ═══════════════════════════════════════ */
+#sidebar {
+  position: fixed; top: 56px; left: 0; bottom: 0;
+  width: 220px; background: rgba(12,12,18,0.95);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border);
+  z-index: 900; overflow-y: auto;
+  padding: 16px 12px;
+  transition: transform 0.3s;
+}
+#sidebar.hidden { transform: translateX(-220px); }
+
+.slide-thumb {
+  width: 100%; aspect-ratio: 16/9;
+  background: var(--bg-surface);
+  border-radius: 8px; margin-bottom: 8px;
+  border: 2px solid transparent;
+  cursor: pointer; position: relative;
+  overflow: hidden; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.slide-thumb:hover { border-color: var(--accent-primary); transform: scale(1.02); }
+.slide-thumb.active { border-color: var(--accent-primary); box-shadow: 0 0 20px rgba(108,92,231,0.3); }
+.slide-thumb .num {
+  position: absolute; top: 4px; left: 6px;
+  font-size: 10px; font-weight: 600;
+  color: var(--text-muted); font-family: 'Space Mono', monospace;
+}
+.slide-thumb .title {
+  font-size: 9px; padding: 4px 8px; text-align:center;
+  color: var(--text-secondary); line-height: 1.3;
+}
+.slide-thumb .delete-slide {
+  position:absolute; top:3px; right:5px;
+  background: rgba(255,0,0,0.7); color:#fff;
+  border:none; border-radius:4px; width:16px; height:16px;
+  font-size:10px; cursor:pointer; display:none;
+  align-items:center; justify-content:center;
+}
+.slide-thumb:hover .delete-slide { display:flex; }
+
+#addSlideBtn {
+  width: 100%; padding: 10px; border-radius: 8px;
+  background: var(--glass); border: 1px dashed var(--text-muted);
+  color: var(--text-muted); cursor: pointer;
+  font-family: 'Outfit'; font-size: 12px; transition: 0.2s;
+}
+#addSlideBtn:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+/* ═══════════════════════════════════════
+   CANVAS AREA
+   ═══════════════════════════════════════ */
+#canvasArea {
+  position: fixed;
+  top: 56px; left: 220px; right: 0; bottom: 0;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(108,92,231,0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(0,206,201,0.03) 0%, transparent 50%),
+    var(--bg-dark);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px;
+  transition: left 0.3s;
+}
+#canvasArea.full { left: 0; }
+
+.slide {
+  width: 1100px; min-height: 620px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+/* DRAG ELEMENTS */
+.drag-el {
+  position: absolute; cursor: move;
+  min-width: 40px; min-height: 20px;
+  border: 2px solid transparent;
+  border-radius: 4px; transition: border-color 0.15s;
+}
+.drag-el:hover { border-color: rgba(108,92,231,0.4); }
+.drag-el.selected { border-color: var(--accent-primary); }
+.drag-el .resize-handle {
+  position:absolute; bottom:-4px; right:-4px;
+  width:10px; height:10px; background: var(--accent-primary);
+  border-radius:2px; cursor:se-resize; display:none;
+}
+.drag-el.selected .resize-handle { display:block; }
+
+[contenteditable] { outline: none; user-select: text; }
+[contenteditable]:focus { background: rgba(108,92,231,0.05); border-radius: 4px; }
+
+/* QR PANEL */
+#qrPanel {
+  position: fixed; right: -360px; top: 56px; bottom: 0;
+  width: 360px; background: rgba(12,12,18,0.97);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid var(--border);
+  z-index: 900; padding: 24px;
+  transition: right 0.3s; overflow-y: auto;
+}
+#qrPanel.open { right: 0; }
+#qrPanel h3 { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 8px; }
+#qrPanel p { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height:1.5; }
+
+.qr-item {
+  background: var(--bg-surface); border-radius: 12px;
+  padding: 16px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 14px; cursor:pointer;
+  transition: 0.2s;
+}
+.qr-item:hover { border-color: var(--accent-primary); }
+.qr-item canvas { border-radius: 6px; }
+.qr-label { font-size: 13px; color: var(--text-secondary); }
+.qr-label strong { display:block; color: var(--text-primary); font-size:15px; margin-bottom:2px; }
+
+.img-el img { max-width:100%; max-height:100%; border-radius:8px; pointer-events:none; }
+
+/* TYPOGRAPHY */
+.t-cover-title { font-family:'DM Serif Display',serif; font-size:52px; font-weight:400; line-height:1.1; color:#fff; }
+.t-cover-sub { font-family:'Outfit',sans-serif; font-size:22px; font-weight:300; color:var(--text-secondary); }
+.t-section-num { font-family:'Space Mono',monospace; font-size:80px; font-weight:700; color:rgba(108,92,231,0.15); }
+.t-section-title { font-family:'DM Serif Display',serif; font-size:38px; color:#fff; }
+.t-body { font-family:'Outfit',sans-serif; font-size:16px; line-height:1.7; color:var(--text-secondary); }
+.t-label { font-family:'Space Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--accent-primary); }
+.t-small { font-size:13px; color:var(--text-muted); }
+
+.slide-table { width:100%; border-collapse:collapse; font-size:13px; }
+.slide-table th { background:var(--accent-primary); color:#fff; padding:10px 12px; text-align:left; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:1px; }
+.slide-table td { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text-secondary); }
+.slide-table tr:hover td { background:rgba(108,92,231,0.05); }
+
+.deco-line { width:60px; height:3px; background:linear-gradient(90deg,var(--accent-primary),var(--accent-secondary)); border-radius:2px; }
+.deco-corner { position:absolute; width:80px; height:80px; border:2px solid rgba(108,92,231,0.15); }
+.deco-corner.tl { top:20px; left:20px; border-right:none; border-bottom:none; }
+.deco-corner.br { bottom:20px; right:20px; border-left:none; border-top:none; }
+
+.badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; font-family:'Space Mono'; }
+.badge-red { background:rgba(253,121,168,0.15); color:var(--accent-warm); }
+.badge-green { background:rgba(0,206,201,0.15); color:var(--accent-secondary); }
+.badge-yellow { background:rgba(255,211,42,0.15); color:var(--accent-gold); }
+.badge-purple { background:rgba(108,92,231,0.15); color:var(--accent-primary); }
+
+.gantt-bar { height:28px; border-radius:6px; display:flex; align-items:center; padding:0 10px; font-size:11px; font-weight:600; color:#fff; position:relative; }
+
+#contextMenu {
+  position:fixed; z-index:2000; display:none;
+  background:var(--bg-surface); border:1px solid var(--border);
+  border-radius:10px; padding:6px; min-width:180px;
+  box-shadow:0 10px 40px rgba(0,0,0,0.6);
+}
+#contextMenu button {
+  display:block; width:100%; text-align:left;
+  padding:8px 14px; border:none; background:transparent;
+  color:var(--text-secondary); font-family:'Outfit';
+  font-size:13px; border-radius:6px; cursor:pointer;
+}
+#contextMenu button:hover { background:var(--accent-primary); color:#fff; }
+
+/* PRESENTATION MODE */
+body.presenting #toolbar, body.presenting #sidebar, body.presenting #qrPanel, body.presenting #p2pModal { display:none!important; }
+body.presenting #canvasArea { left:0; top:0; background:#000; }
+body.presenting .slide { border-radius:0; border:none; width:100vw; height:100vh; max-width:100vw; }
+body.presenting .drag-el { cursor:default; border:none!important; }
+body.presenting .drag-el .resize-handle { display:none!important; }
+
+/* Notification toast */
+.p2p-toast {
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+  background:var(--bg-surface); border:1px solid var(--accent-secondary);
+  border-radius:12px; padding:12px 24px;
+  font-size:14px; color:var(--accent-secondary);
+  z-index:3000; animation: toastIn 0.3s ease, toastOut 0.3s ease 2.5s forwards;
+  display:flex; align-items:center; gap:8px;
+  box-shadow: 0 10px 40px rgba(0,206,201,0.2);
+}
+@keyframes toastIn { from { transform:translateX(-50%) translateY(20px); opacity:0; } }
+@keyframes toastOut { to { transform:translateX(-50%) translateY(20px); opacity:0; } }
+
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--text-muted); border-radius:3px; }
+
+#imgInput { display:none; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     REMOTE CONTROLLER UI (phone)
+     ═══════════════════════════════════════ -->
+<div id="remoteUI">
+  <div class="remote-header">
+    <h1>ProPresent Remote</h1>
+    <p>Télécommande de présentation</p>
+  </div>
+
+  <div id="remoteStatus" class="remote-status connecting">
+    <span class="dot"></span>
+    <span id="remoteStatusText">Connexion en cours...</span>
+  </div>
+
+  <div class="remote-slide-display">
+    <div class="remote-slide-num" id="remoteSlideNum">1</div>
+    <div class="remote-slide-title" id="remoteSlideTitle">Couverture</div>
+    <div class="remote-slide-total" id="remoteSlideTotal">Slide 1 / 14</div>
+  </div>
+
+  <div class="remote-nav">
+    <button onclick="remoteSend('prev')" aria-label="Précédent">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+    </button>
+    <button onclick="remoteSend('next')" aria-label="Suivant">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9,18 15,12 9,6"/></svg>
+    </button>
+  </div>
+
+  <div class="remote-grid" id="remoteGrid"></div>
+
+  <div class="remote-actions">
+    <button onclick="remoteSend('present')">Présenter</button>
+    <button onclick="remoteSend('black')">Écran noir</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PRESENTER TOOLBAR
+     ═══════════════════════════════════════ -->
+<div id="toolbar">
+  <span class="logo">ProPresent</span>
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn" onclick="toggleSidebar()" title="Slides">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Slides
+  </button>
+
+  <button class="tb-btn" onclick="addTextBlock()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg>
+    Texte
+  </button>
+
+  <button class="tb-btn" onclick="document.getElementById('imgInput').click()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+    Image
+  </button>
+
+  <button class="tb-btn" onclick="addShape()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+    Forme
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn p2p-live" id="p2pBtn" onclick="openP2PModal()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M5 13a10 10 0 0 1 14 0"/><path d="M1.5 9.5a15 15 0 0 1 21 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>
+    <span>P2P Live</span>
+    <span class="live-dot"></span>
+    <span id="peerCount" style="font-family:'Space Mono';font-size:11px;display:none;margin-left:2px"></span>
+  </button>
+
+  <button class="tb-btn" onclick="toggleQR()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="17" width="4" height="4"/></svg>
+    QR Nav
+  </button>
+
+  <button class="tb-btn" onclick="togglePresent()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>
+    Présenter
+  </button>
+
+  <div class="tb-page-nav">
+    <button onclick="prevSlide()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></button>
+    <span id="pageIndicator">1 / 14</span>
+    <button onclick="nextSlide()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></button>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar"></div>
+
+<!-- CANVAS -->
+<div id="canvasArea">
+  <div class="slide" id="currentSlide"></div>
+</div>
+
+<!-- QR PANEL -->
+<div id="qrPanel">
+  <h3>Navigation QR</h3>
+  <p>Scannez un QR code pour accéder directement à la slide correspondante.</p>
+  <div id="qrList"></div>
+</div>
+
+<!-- P2P MODAL -->
+<div id="p2pModal">
+  <div class="p2p-card">
+    <button class="close-btn" onclick="closeP2PModal()">×</button>
+    <h2>Contrôle P2P</h2>
+    <div class="subtitle">Scannez ce QR code depuis votre téléphone pour contrôler la présentation en temps réel via WebRTC.</div>
+
+    <div class="p2p-qr-wrap" id="p2pQrWrap"></div>
+
+    <div class="p2p-room-code">
+      <span class="code" id="p2pRoomCode">------</span>
+      <button class="copy-btn" onclick="copyRoomLink()">Copier le lien</button>
+    </div>
+
+    <div class="p2p-status waiting" id="p2pStatus">
+      <span class="dot" style="width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite"></span>
+      <span id="p2pStatusText">En attente de connexion...</span>
+    </div>
+
+    <div class="p2p-peers" id="p2pPeers"></div>
+
+    <div class="p2p-instructions">
+      <div class="step"><span class="step-num">1</span><span>Scannez le QR code avec votre téléphone</span></div>
+      <div class="step"><span class="step-num">2</span><span>La page de contrôle s'ouvre automatiquement</span></div>
+      <div class="step"><span class="step-num">3</span><span>Utilisez les flèches pour naviguer en temps réel</span></div>
+      <div class="step"><span class="step-num">4</span><span>Fonctionne en P2P direct — aucun serveur intermédiaire</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="contextMenu">
+  <button onclick="duplicateEl()">Dupliquer</button>
+  <button onclick="bringForward()">Avancer</button>
+  <button onclick="sendBackward()">Reculer</button>
+  <button onclick="deleteEl()">Supprimer</button>
+</div>
+
+<input type="file" id="imgInput" accept="image/*" onchange="handleImageUpload(event)">
+
+<script>
+// ═════════════════════════════════════════════════
+//  SLIDE TITLES (shared)
+// ═════════════════════════════════════════════════
+const slideTitles = [
+  'Couverture','Sommaire','Introduction','Cadrage','RACI',
+  'WBS','Gantt','Pilotage','Risques','Communication',
+  'KPI','Trello','Analogie SI','Conclusion'
+];
+
+// ═════════════════════════════════════════════════
+//  DETECT MODE: REMOTE CONTROLLER vs PRESENTER
+// ═════════════════════════════════════════════════
+const urlParams = new URLSearchParams(window.location.search);
+const remoteHostId = urlParams.get('remote');
+const isRemote = !!remoteHostId;
+
+// ═════════════════════════════════════════════════
+//  P2P — PRESENTER (HOST) SIDE
+// ═════════════════════════════════════════════════
+let hostPeer = null;
+let connectedPeers = [];
+let p2pReady = false;
+
+function initP2P() {
+  const roomId = 'propresent-' + Math.random().toString(36).substring(2, 8);
+  hostPeer = new Peer(roomId, {
+    debug: 0,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]
+    }
+  });
+
+  hostPeer.on('open', (id) => {
+    p2pReady = true;
+    document.getElementById('p2pRoomCode').textContent = id.replace('propresent-','').toUpperCase();
+    generateP2PQR(id);
+    updateP2PStatus();
+  });
+
+  hostPeer.on('connection', (conn) => {
+    connectedPeers.push(conn);
+    updatePeerCount();
+    showToast(`Appareil connecté (${connectedPeers.length})`);
+
+    // Send current state
+    conn.on('open', () => {
+      conn.send({ type:'sync', slide: currentSlideIndex, total: slidesData.length, titles: slideTitles });
+      updateP2PStatus();
+    });
+
+    conn.on('data', (data) => {
+      handleRemoteCommand(data);
+    });
+
+    conn.on('close', () => {
+      connectedPeers = connectedPeers.filter(c => c !== conn);
+      updatePeerCount();
+      updateP2PStatus();
+    });
+  });
+
+  hostPeer.on('error', (err) => {
+    console.error('PeerJS error:', err);
+    if (err.type === 'unavailable-id') {
+      // Retry with different ID
+      setTimeout(initP2P, 500);
+    }
+  });
+}
+
+function handleRemoteCommand(data) {
+  if (data.action === 'next') nextSlide();
+  else if (data.action === 'prev') prevSlide();
+  else if (data.action === 'goto') goToSlide(data.slide);
+  else if (data.action === 'present') togglePresent();
+  else if (data.action === 'black') {
+    const slide = document.getElementById('currentSlide');
+    slide.style.opacity = slide.style.opacity === '0' ? '1' : '0';
+  }
+}
+
+function broadcastToRemotes(msg) {
+  connectedPeers.forEach(conn => {
+    if (conn.open) {
+      try { conn.send(msg); } catch(e) {}
+    }
+  });
+}
+
+function generateP2PQR(peerId) {
+  const wrap = document.getElementById('p2pQrWrap');
+  wrap.innerHTML = '';
+  const baseUrl = window.location.href.split('?')[0];
+  const remoteUrl = `${baseUrl}?remote=${peerId}`;
+  new QRCode(wrap, {
+    text: remoteUrl,
+    width: 200, height: 200,
+    colorDark: '#6c5ce7',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+
+function updateP2PStatus() {
+  const statusEl = document.getElementById('p2pStatus');
+  const textEl = document.getElementById('p2pStatusText');
+  if (connectedPeers.length > 0) {
+    statusEl.className = 'p2p-status ready';
+    textEl.textContent = `${connectedPeers.length} appareil(s) connecté(s)`;
+  } else if (p2pReady) {
+    statusEl.className = 'p2p-status waiting';
+    textEl.textContent = 'En attente de connexion...';
+  }
+  document.getElementById('p2pPeers').innerHTML =
+    connectedPeers.length > 0
+      ? `<strong>${connectedPeers.length}</strong> télécommande(s) active(s)`
+      : '';
+}
+
+function updatePeerCount() {
+  const el = document.getElementById('peerCount');
+  const btn = document.getElementById('p2pBtn');
+  if (connectedPeers.length > 0) {
+    el.style.display = 'inline';
+    el.textContent = connectedPeers.length;
+    btn.classList.add('has-peers');
+  } else {
+    el.style.display = 'none';
+    btn.classList.remove('has-peers');
+  }
+}
+
+function openP2PModal() {
+  if (!hostPeer) initP2P();
+  document.getElementById('p2pModal').classList.add('open');
+}
+function closeP2PModal() {
+  document.getElementById('p2pModal').classList.remove('open');
+}
+
+function copyRoomLink() {
+  if (!hostPeer || !hostPeer.id) return;
+  const baseUrl = window.location.href.split('?')[0];
+  const link = `${baseUrl}?remote=${hostPeer.id}`;
+  navigator.clipboard.writeText(link).then(() => {
+    showToast('Lien copié !');
+  });
+}
+
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.className = 'p2p-toast';
+  toast.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>${msg}`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ═════════════════════════════════════════════════
+//  P2P — REMOTE CONTROLLER SIDE
+// ═════════════════════════════════════════════════
+let remoteConn = null;
+let remoteState = { slide: 0, total: 14, titles: slideTitles };
+
+function initRemoteController() {
+  const remotePeer = new Peer(undefined, {
+    debug: 0,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]
+    }
+  });
+
+  // Build the grid
+  buildRemoteGrid();
+
+  remotePeer.on('open', () => {
+    remoteConn = remotePeer.connect(remoteHostId, { reliable: true });
+
+    remoteConn.on('open', () => {
+      setRemoteStatus('connected', 'Connecté au présentateur');
+    });
+
+    remoteConn.on('data', (data) => {
+      if (data.type === 'sync') {
+        remoteState.slide = data.slide;
+        remoteState.total = data.total;
+        if (data.titles) remoteState.titles = data.titles;
+        updateRemoteDisplay();
+      }
+      if (data.type === 'slideChange') {
+        remoteState.slide = data.slide;
+        updateRemoteDisplay();
+      }
+    });
+
+    remoteConn.on('close', () => {
+      setRemoteStatus('error', 'Connexion perdue');
+    });
+
+    remoteConn.on('error', () => {
+      setRemoteStatus('error', 'Erreur de connexion');
+    });
+  });
+
+  remotePeer.on('error', (err) => {
+    console.error('Remote peer error:', err);
+    setRemoteStatus('error', 'Impossible de se connecter');
+  });
+}
+
+function remoteSend(action) {
+  if (!remoteConn || !remoteConn.open) return;
+  // Haptic feedback on mobile
+  if (navigator.vibrate) navigator.vibrate(30);
+  remoteConn.send({ action });
+}
+
+function remoteGoto(idx) {
+  if (!remoteConn || !remoteConn.open) return;
+  if (navigator.vibrate) navigator.vibrate(30);
+  remoteConn.send({ action:'goto', slide: idx });
+}
+
+function setRemoteStatus(state, text) {
+  const el = document.getElementById('remoteStatus');
+  el.className = 'remote-status ' + state;
+  document.getElementById('remoteStatusText').textContent = text;
+}
+
+function updateRemoteDisplay() {
+  const num = document.getElementById('remoteSlideNum');
+  const title = document.getElementById('remoteSlideTitle');
+  const total = document.getElementById('remoteSlideTotal');
+  num.textContent = remoteState.slide + 1;
+  title.textContent = remoteState.titles[remoteState.slide] || `Slide ${remoteState.slide + 1}`;
+  total.textContent = `Slide ${remoteState.slide + 1} / ${remoteState.total}`;
+  buildRemoteGrid();
+}
+
+function buildRemoteGrid() {
+  const grid = document.getElementById('remoteGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (let i = 0; i < remoteState.total; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i + 1;
+    if (i === remoteState.slide) btn.classList.add('current');
+    btn.onclick = () => remoteGoto(i);
+    grid.appendChild(btn);
+  }
+}
+
+// ═════════════════════════════════════════════════
+//  PRESENTER LOGIC (skip if remote mode)
+// ═════════════════════════════════════════════════
+
+// All slide data
+const slidesData = [
+  // SLIDE 0 — COVER
+  { bg:'linear-gradient(135deg, #0a0a0f 0%, #1a1033 50%, #0a0a0f 100%)', elements:[
+    {type:'text',x:60,y:40,w:500,h:40,cls:'t-label',text:'Module Gestion de Projet — 2025-2026'},
+    {type:'html',x:60,y:100,w:700,h:180,html:'<div class="t-cover-title" contenteditable>Rapport de<br>Gestion de Projet</div>'},
+    {type:'html',x:60,y:300,w:600,h:60,html:'<div class="deco-line" style="margin-bottom:14px"></div><div class="t-cover-sub" contenteditable>Construction d\'un Centre Commercial sur un Terrain Vague</div>'},
+    {type:'text',x:60,y:420,w:500,h:30,cls:'t-body',text:'Sujet 7 — Analogie avec la gestion d\'un Système d\'Information'},
+    {type:'html',x:60,y:500,w:500,h:60,html:'<div style="display:flex;gap:12px;align-items:center"><span class="badge badge-purple" contenteditable>[Prénom NOM 1]</span><span class="badge badge-purple" contenteditable>[Prénom NOM 2]</span><span class="badge badge-purple" contenteditable>[Prénom NOM 3]</span></div>'},
+    {type:'text',x:60,y:560,w:200,h:20,cls:'t-small',text:'Mars 2026'},
+    {type:'html',x:850,y:120,w:200,h:400,html:'<div style="width:180px;height:380px;border-radius:16px;background:linear-gradient(180deg,rgba(108,92,231,0.2),rgba(0,206,201,0.1));border:1px solid rgba(108,92,231,0.2)"></div>'},
+  ]},
+  // SLIDE 1 — Sommaire
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">00</div>'},
+    {type:'text',x:60,y:105,w:400,h:50,cls:'t-section-title',text:'Sommaire'},
+    {type:'html',x:60,y:175,w:980,h:420,html:`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${['1. Introduction et contexte','2. Cadrage du projet','3. Organisation & RACI','4. Découpage WBS','5. Planification Gantt','6. Pilotage du projet','7. Gestion des risques','8. Plan de communication','9. Indicateurs KPI','10. Outil Trello','11. Analogie SI','12. Conclusion'].map((t,i)=>`<div contenteditable style="padding:14px 18px;background:${i%2===0?'var(--bg-surface)':'var(--glass)'};border-radius:10px;font-size:15px;color:var(--text-secondary);border-left:3px solid ${['var(--accent-primary)','var(--accent-secondary)','var(--accent-warm)','var(--accent-gold)'][i%4]};cursor:text">${t}</div>`).join('')}</div>`},
+  ]},
+  // SLIDE 2 — Introduction
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">01</div>'},
+    {type:'text',x:60,y:105,w:600,h:50,cls:'t-section-title',text:'Introduction et contexte'},
+    {type:'html',x:60,y:175,w:620,h:180,html:'<div class="t-body" contenteditable>Le présent rapport s\'inscrit dans le cadre du module de Gestion de Projet 2025-2026. Notre groupe a choisi le sujet n°7 : conduire un chantier visant la construction d\'un centre commercial sur un terrain vague.<br><br>Tout projet est soumis à trois contraintes interdépendantes : la <strong style="color:var(--accent-primary)">Qualité</strong>, le <strong style="color:var(--accent-secondary)">Coût</strong> et le <strong style="color:var(--accent-warm)">Délai</strong>.</div>'},
+    {type:'html',x:720,y:160,w:340,h:250,html:`<div style="background:var(--bg-surface);border-radius:14px;padding:24px;text-align:center;border:1px solid var(--border)"><div style="font-family:'DM Serif Display';font-size:18px;margin-bottom:20px" contenteditable>Triangle QCD</div><svg width="200" height="170" viewBox="0 0 200 170"><polygon points="100,10 190,150 10,150" fill="none" stroke="url(#triGrad)" stroke-width="2.5"/><defs><linearGradient id="triGrad"><stop offset="0%" stop-color="#6c5ce7"/><stop offset="50%" stop-color="#00cec9"/><stop offset="100%" stop-color="#fd79a8"/></linearGradient></defs><text x="100" y="8" text-anchor="middle" fill="#6c5ce7" font-size="12" font-family="Space Mono">QUALITÉ</text><text x="195" y="168" text-anchor="end" fill="#00cec9" font-size="12" font-family="Space Mono">COÛT</text><text x="5" y="168" text-anchor="start" fill="#fd79a8" font-size="12" font-family="Space Mono">DÉLAI</text></svg></div>`},
+    {type:'html',x:60,y:400,w:980,h:180,html:`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${[['Démarche projet','Présenter la démarche adoptée pour conduire le chantier','var(--accent-primary)'],['Enjeux & risques','Identifier les parties prenantes et risques associés','var(--accent-secondary)'],['Analogie SI','Établir l\'analogie entre gestion chantier et gestion SI','var(--accent-warm)']].map(([t,d,c])=>`<div style="background:var(--bg-surface);border-radius:12px;padding:18px;border-top:3px solid ${c}"><div style="font-weight:600;font-size:15px;margin-bottom:6px" contenteditable>${t}</div><div style="font-size:13px;color:var(--text-secondary);line-height:1.5" contenteditable>${d}</div></div>`).join('')}</div>`},
+  ]},
+  // SLIDE 3 — Cadrage
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">02</div>'},
+    {type:'text',x:60,y:105,w:500,h:50,cls:'t-section-title',text:'Cadrage du projet'},
+    {type:'html',x:60,y:175,w:980,h:50,html:'<div class="t-body" contenteditable>Le projet couvre la totalité du cycle de vie du chantier : des études préliminaires jusqu\'à la livraison et la mise en service.</div>'},
+    {type:'html',x:60,y:245,w:980,h:340,html:`<div class="t-label" style="margin-bottom:12px">Parties prenantes</div><table class="slide-table"><thead><tr><th>Partie prenante</th><th>Rôle</th><th>Attentes principales</th></tr></thead><tbody><tr><td contenteditable>Maître d'ouvrage</td><td contenteditable>Commanditaire / Sponsor</td><td contenteditable>Rentabilité, respect budget & délais</td></tr><tr><td contenteditable>Chef de chantier</td><td contenteditable>Pilotage opérationnel (MOE)</td><td contenteditable>Respect délais, qualité, coûts</td></tr><tr><td contenteditable>Architecte</td><td contenteditable>Conception technique & plans</td><td contenteditable>Validation plans, conformité DTU</td></tr><tr><td contenteditable>Entreprise BTP</td><td contenteditable>Réalisation des travaux</td><td contenteditable>Clarté des missions, paiement</td></tr><tr><td contenteditable>Bureau de contrôle</td><td contenteditable>Vérification & conformité</td><td contenteditable>Respect normes ERP, sécurité</td></tr><tr><td contenteditable>Collectivités locales</td><td contenteditable>Autorisation & réglementation</td><td contenteditable>Conformité permis, urbanisme</td></tr><tr><td contenteditable>Futurs locataires</td><td contenteditable>Utilisateurs finaux</td><td contenteditable>Qualité espaces, accessibilité PMR</td></tr></tbody></table>`},
+  ]},
+  // SLIDE 4 — RACI
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">03</div>'},
+    {type:'text',x:60,y:105,w:600,h:50,cls:'t-section-title',text:'Organisation & Matrice RACI'},
+    {type:'html',x:60,y:170,w:980,h:40,html:'<div class="t-body" contenteditable>Chaque tâche possède un responsable unique. La matrice RACI évite les conflits d\'autorité.</div>'},
+    {type:'html',x:60,y:225,w:450,h:160,html:`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${[['R','Responsable','var(--accent-primary)'],['A','Acteur','var(--accent-secondary)'],['C','Consulté','var(--accent-warm)'],['I','Informé','var(--accent-gold)']].map(([l,t,c])=>`<div style="background:var(--bg-surface);border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center"><span style="width:30px;height:30px;border-radius:8px;background:${c};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff">${l}</span><span style="font-size:13px;color:var(--text-secondary)" contenteditable>${t}</span></div>`).join('')}</div>`},
+    {type:'html',x:60,y:400,w:980,h:200,html:`<table class="slide-table"><thead><tr><th>Activité</th><th>MOA</th><th>Chef projet</th><th>Architecte</th><th>BTP</th><th>Bureau ctrl</th></tr></thead><tbody><tr><td contenteditable>Validation du projet</td><td><span class="badge badge-green">A</span></td><td><span class="badge badge-purple">R</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-yellow">I</span></td><td><span class="badge badge-yellow">I</span></td></tr><tr><td contenteditable>Planning</td><td><span class="badge badge-yellow">I</span></td><td><span class="badge badge-purple">R</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-yellow">I</span></td></tr><tr><td contenteditable>Conception plans</td><td><span class="badge badge-yellow">I</span></td><td><span class="badge badge-green">A</span></td><td><span class="badge badge-purple">R</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-red">C</span></td></tr><tr><td contenteditable>Construction</td><td><span class="badge badge-yellow">I</span></td><td><span class="badge badge-green">A</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-purple">R</span></td><td><span class="badge badge-red">C</span></td></tr><tr><td contenteditable>Contrôle sécurité</td><td><span class="badge badge-yellow">I</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-green">A</span></td><td><span class="badge badge-purple">R</span></td></tr><tr><td contenteditable>Réception finale</td><td><span class="badge badge-green">A</span></td><td><span class="badge badge-purple">R</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-red">C</span></td><td><span class="badge badge-red">C</span></td></tr></tbody></table>`},
+  ]},
+  // SLIDE 5 — WBS
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">04</div>'},
+    {type:'text',x:60,y:105,w:600,h:50,cls:'t-section-title',text:'Découpage du projet (WBS)'},
+    {type:'html',x:60,y:175,w:980,h:420,html:`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${[['Lot 1','Préparation','Étude terrain, permis de construire, installation chantier','var(--accent-primary)'],['Lot 2','Conception','Plans architecturaux, validation technique, maquette 3D','var(--accent-secondary)'],['Lot 3','Gros œuvre','Terrassement, fondations, structure béton','var(--accent-warm)'],['Lot 4','Second œuvre','Électricité, plomberie, climatisation, sécurité incendie','var(--accent-gold)'],['Lot 5','Aménagement','Vitrines, parkings, signalétique, espaces communs','#a29bfe'],['Lot 6','Livraison','Inspection finale, levée des réserves, réception officielle','#55efc4']].map(([lot,title,desc,c])=>`<div style="background:var(--bg-surface);border-radius:12px;padding:20px;border-left:4px solid ${c}"><div style="font-family:'Space Mono';font-size:11px;color:${c};margin-bottom:4px" contenteditable>${lot}</div><div style="font-size:17px;font-weight:600;margin-bottom:8px" contenteditable>${title}</div><div style="font-size:13px;color:var(--text-secondary);line-height:1.5" contenteditable>${desc}</div></div>`).join('')}</div>`},
+  ]},
+  // SLIDE 6 — Gantt
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">05</div>'},
+    {type:'text',x:60,y:105,w:600,h:50,cls:'t-section-title',text:'Planification Gantt'},
+    {type:'html',x:60,y:165,w:980,h:30,html:'<div class="t-body" contenteditable>Durée totale prévisionnelle : <strong style="color:var(--accent-primary)">24 mois</strong> — Marge de sécurité de 10% intégrée.</div>'},
+    {type:'html',x:60,y:210,w:980,h:380,html:`<div style="position:relative"><div style="display:flex;justify-content:space-between;font-family:'Space Mono';font-size:10px;color:var(--text-muted);margin-bottom:14px;padding:0 4px">${Array.from({length:25},(_,i)=>i%3===0?`<span>M${i}</span>`:'<span></span>').join('')}</div>${[['Lot 1 — Préparation',0,3,'#6c5ce7','J1: Permis'],['Lot 2 — Conception',3,4,'#00cec9','J2: Plans validés'],['Lot 3 — Gros œuvre',7,8,'#fd79a8','J3: Hors d\'eau'],['Lot 4 — Second œuvre',15,6,'#ffd32a','J4: Réception prov.'],['Lot 5 — Aménagement',21,2,'#a29bfe','J5: Levée réserves'],['Lot 6 — Livraison',23,1,'#55efc4','J6: Ouverture']].map(([label,start,dur,color,jalon])=>`<div style="margin-bottom:16px"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:5px" contenteditable>${label} <span style="float:right;font-family:'Space Mono';font-size:10px;color:${color}">${dur} mois</span></div><div style="position:relative;height:32px;background:var(--bg-surface);border-radius:8px;overflow:hidden"><div class="gantt-bar" style="position:absolute;left:${(start/24)*100}%;width:${(dur/24)*100}%;background:${color}">${jalon}</div></div></div>`).join('')}</div>`},
+  ]},
+  // SLIDE 7 — Pilotage
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">06</div>'},
+    {type:'text',x:60,y:105,w:500,h:50,cls:'t-section-title',text:'Pilotage du projet'},
+    {type:'html',x:60,y:175,w:980,h:130,html:`<div class="t-label" style="margin-bottom:12px">Dispositif de réunions</div><table class="slide-table"><thead><tr><th>Réunion</th><th>Fréquence</th><th>Participants</th><th>Objectif</th></tr></thead><tbody><tr><td contenteditable>Réunion de chantier</td><td contenteditable>Hebdomadaire</td><td contenteditable>Chef projet + BTP</td><td contenteditable>Coordination opérationnelle</td></tr><tr><td contenteditable>Comité projet</td><td contenteditable>Mensuel</td><td contenteditable>Architecte + bureau études</td><td contenteditable>Suivi technique & qualité</td></tr><tr><td contenteditable>Comité de pilotage</td><td contenteditable>Trimestriel</td><td contenteditable>Sponsor + MOA + chef</td><td contenteditable>Décisions stratégiques</td></tr></tbody></table>`},
+    {type:'html',x:60,y:340,w:980,h:250,html:`<div class="t-label" style="margin-bottom:12px">Outils de pilotage</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">${[['📋','Trello','Suivi tâches & avancement'],['📊','Tableau de bord','Synthèse KPI hebdomadaire'],['📝','Compte-rendus','Archivage des décisions'],['⚠️','Registre risques','Réévaluation hebdo']].map(([icon,title,desc])=>`<div style="background:var(--bg-surface);border-radius:12px;padding:18px;text-align:center"><div style="font-size:28px;margin-bottom:8px">${icon}</div><div style="font-weight:600;font-size:14px;margin-bottom:4px" contenteditable>${title}</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.4" contenteditable>${desc}</div></div>`).join('')}</div>`},
+  ]},
+  // SLIDE 8 — Risques
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">07</div>'},
+    {type:'text',x:60,y:105,w:500,h:50,cls:'t-section-title',text:'Gestion des risques'},
+    {type:'html',x:60,y:170,w:980,h:430,html:`<table class="slide-table"><thead><tr><th>Risque</th><th>P</th><th>I</th><th>P×I</th><th>Niveau</th><th>Action préventive</th><th>Action corrective</th></tr></thead><tbody><tr><td contenteditable>Retard livraison matériaux</td><td>4</td><td>4</td><td><strong style="color:var(--accent-warm)">16</strong></td><td><span class="badge badge-red">Élevé</span></td><td contenteditable>Double fournisseur</td><td contenteditable>Réorg. planning</td></tr><tr><td contenteditable>Dépassement budget</td><td>3</td><td>5</td><td><strong style="color:var(--accent-warm)">15</strong></td><td><span class="badge badge-red">Élevé</span></td><td contenteditable>Réserve 10%</td><td contenteditable>Arbitrage MOA</td></tr><tr><td contenteditable>Défaillance prestataire</td><td>3</td><td>4</td><td><strong style="color:var(--accent-warm)">12</strong></td><td><span class="badge badge-red">Élevé</span></td><td contenteditable>Sélection stricte</td><td contenteditable>Remplacement</td></tr><tr><td contenteditable>Accident de chantier</td><td>2</td><td>5</td><td><strong style="color:var(--accent-gold)">10</strong></td><td><span class="badge badge-red">Élevé</span></td><td contenteditable>Plan prévention</td><td contenteditable>Arrêt + enquête</td></tr><tr><td contenteditable>Défaut de structure</td><td>2</td><td>5</td><td><strong style="color:var(--accent-gold)">10</strong></td><td><span class="badge badge-red">Élevé</span></td><td contenteditable>Contrôles hebdo</td><td contenteditable>Reprise travaux</td></tr><tr><td contenteditable>Mauvaise météo</td><td>3</td><td>3</td><td><strong style="color:var(--accent-gold)">9</strong></td><td><span class="badge badge-yellow">Moyen</span></td><td contenteditable>Marge planning</td><td contenteditable>Décaler travaux</td></tr><tr><td contenteditable>Non-conformité</td><td>2</td><td>4</td><td><strong>8</strong></td><td><span class="badge badge-yellow">Moyen</span></td><td contenteditable>Audit régulier</td><td contenteditable>Corrections</td></tr></tbody></table><div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Criticité ≥ 12 → Escalade au comité de pilotage</div>`},
+  ]},
+  // SLIDE 9 — Communication
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">08</div>'},
+    {type:'text',x:60,y:105,w:500,h:50,cls:'t-section-title',text:'Plan de communication'},
+    {type:'html',x:60,y:175,w:980,h:400,html:`<div class="t-body" style="margin-bottom:16px" contenteditable>Un projet échoue souvent par manque de communication. Nous avons structuré les échanges entre toutes les parties prenantes.</div><table class="slide-table"><thead><tr><th>Type</th><th>Objectif</th><th>Fréquence</th><th>Destinataires</th></tr></thead><tbody><tr><td contenteditable>Réunion de chantier</td><td contenteditable>Coordination</td><td contenteditable>Hebdomadaire</td><td contenteditable>Entreprises + chef</td></tr><tr><td contenteditable>Compte-rendu</td><td contenteditable>Traçabilité</td><td contenteditable>Hebdomadaire</td><td contenteditable>Tous les acteurs</td></tr><tr><td contenteditable>Comité projet</td><td contenteditable>Suivi technique</td><td contenteditable>Mensuel</td><td contenteditable>Architecte + bureau</td></tr><tr><td contenteditable>Comité pilotage</td><td contenteditable>Décisions stratégiques</td><td contenteditable>Trimestriel</td><td contenteditable>Sponsor + MOA</td></tr><tr><td contenteditable>Rapport avancement</td><td contenteditable>Synthèse globale</td><td contenteditable>Mensuel</td><td contenteditable>MOA + direction</td></tr><tr><td contenteditable>Alerte risque</td><td contenteditable>Signalement</td><td contenteditable>À la demande</td><td contenteditable>Chef + MOA</td></tr></tbody></table>`},
+  ]},
+  // SLIDE 10 — KPI
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">09</div>'},
+    {type:'text',x:60,y:105,w:500,h:50,cls:'t-section-title',text:'Indicateurs KPI'},
+    {type:'html',x:60,y:175,w:980,h:410,html:`<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px">${[['📈','Avancement','%','Écart > 5%','var(--accent-primary)'],['📅','Écart planning','jours','> 5 jours','var(--accent-secondary)'],['💰','Budget','%','> 90%','var(--accent-warm)'],['🦺','Incidents','nombre','Tout incident','var(--accent-gold)'],['❌','Non-conform.','nombre','> 3','#a29bfe']].map(([icon,label,unit,alert,c])=>`<div style="background:var(--bg-surface);border-radius:14px;padding:18px;text-align:center;border-bottom:3px solid ${c}"><div style="font-size:26px;margin-bottom:6px">${icon}</div><div style="font-weight:600;font-size:14px;margin-bottom:2px" contenteditable>${label}</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">${unit}</div><div style="font-family:'Space Mono';font-size:10px;color:var(--accent-warm);background:rgba(253,121,168,0.1);padding:4px 8px;border-radius:6px">Alerte : ${alert}</div></div>`).join('')}</div><div class="t-body" contenteditable>Ces indicateurs permettent de détecter rapidement tout dérapage.</div>`},
+  ]},
+  // SLIDE 11 — Trello
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">10</div>'},
+    {type:'text',x:60,y:105,w:500,h:50,cls:'t-section-title',text:'Outil Trello'},
+    {type:'html',x:60,y:175,w:500,h:200,html:`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${[['Interface intuitive','Prise en main immédiate'],['Collaboration','Mises à jour temps réel'],['Accès mobile','Suivi depuis le terrain'],['Gratuit','Version freemium suffisante']].map(([t,d])=>`<div style="background:var(--bg-surface);border-radius:10px;padding:14px"><div style="font-weight:600;font-size:13px;margin-bottom:3px" contenteditable>${t}</div><div style="font-size:11px;color:var(--text-secondary)" contenteditable>${d}</div></div>`).join('')}</div>`},
+    {type:'html',x:590,y:175,w:460,h:200,html:`<div style="background:var(--bg-surface);border-radius:14px;padding:16px;border:1px solid var(--border)"><div class="t-label" style="margin-bottom:10px">Organisation Kanban</div><div style="display:flex;gap:8px">${['À faire','En cours','Révision','Terminé','Bloqué'].map((col,i)=>{const colors=['#6c5ce7','#00cec9','#ffd32a','#55efc4','#fd79a8'];return`<div style="flex:1;background:rgba(0,0,0,0.3);border-radius:8px;padding:8px;min-height:100px"><div style="font-size:10px;font-weight:700;color:${colors[i]};margin-bottom:6px;text-transform:uppercase">${col}</div><div style="background:var(--bg-surface);border-radius:6px;padding:6px;margin-bottom:4px;font-size:9px;color:var(--text-secondary);border-left:2px solid ${colors[i]}">Tâche ex.</div></div>`}).join('')}</div></div>`},
+    {type:'html',x:60,y:400,w:980,h:180,html:`<table class="slide-table" style="font-size:12px"><thead><tr><th>Fonctionnalité</th><th>Usage</th><th>Application</th></tr></thead><tbody><tr><td contenteditable>Listes (colonnes)</td><td contenteditable>États d'avancement</td><td contenteditable>À faire / En cours / Terminé / Bloqué</td></tr><tr><td contenteditable>Labels couleur</td><td contenteditable>Priorité</td><td contenteditable>Rouge=urgent, Orange=surveiller, Vert=normal</td></tr><tr><td contenteditable>Checklists</td><td contenteditable>Sous-tâches</td><td contenteditable>Décomposition en étapes</td></tr><tr><td contenteditable>Power-Up Calendrier</td><td contenteditable>Vue temporelle</td><td contenteditable>Deadlines sur calendrier</td></tr></tbody></table>`},
+  ]},
+  // SLIDE 12 — Analogie SI
+  { bg:'var(--bg-card)', elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">11</div>'},
+    {type:'text',x:60,y:105,w:700,h:50,cls:'t-section-title',text:'Analogie avec un Système d\'Information'},
+    {type:'html',x:60,y:170,w:480,h:380,html:`<div class="t-label" style="margin-bottom:10px">Correspondances</div><div style="display:flex;flex-direction:column;gap:6px">${[['Terrain vague','Besoin métier non informatisé'],['Maître d\'ouvrage','Direction / Sponsor'],['Architecte','AMOA / Analyste fonctionnel'],['Plan construction','Cahier des charges'],['Chef de chantier','Chef de projet SI'],['Entreprise BTP','Équipe dev / ESN'],['Fondations','Infrastructure SI']].map(([a,b])=>`<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;background:var(--bg-surface);border-radius:8px;padding:8px 12px;font-size:12px;text-align:right" contenteditable>${a}</div><div style="color:var(--accent-primary);font-size:16px">→</div><div style="flex:1;background:var(--bg-surface);border-radius:8px;padding:8px 12px;font-size:12px" contenteditable>${b}</div></div>`).join('')}</div>`},
+    {type:'html',x:570,y:170,w:470,h:380,html:`<div class="t-label" style="margin-bottom:10px">Phases comparées</div><div style="display:flex;flex-direction:column;gap:6px">${[['Préparation terrain','Analyse des besoins','var(--accent-primary)'],['Fondations','Conception architecture','var(--accent-secondary)'],['Gros œuvre','Développement logiciel','var(--accent-warm)'],['Second œuvre','Intégration & paramétrage','var(--accent-gold)'],['Tests & réception','Recette fonctionnelle','#a29bfe'],['Ouverture','Mise en production','#55efc4'],['Exploitation','Maintenance applicative','#74b9ff']].map(([a,b,c])=>`<div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:3px;background:${c};flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--text-secondary)" contenteditable>${a}</div><div style="flex:1;font-size:12px;color:var(--text-secondary)" contenteditable>${b}</div></div>`).join('')}</div><div style="margin-top:16px;background:var(--bg-surface);border-radius:10px;padding:14px;font-size:12px;color:var(--text-secondary);line-height:1.5;border-left:3px solid var(--accent-primary)" contenteditable><strong style="color:var(--text-primary)">Principe clé :</strong> Construction et SI partagent les mêmes fondamentaux de gestion.</div>`},
+  ]},
+  // SLIDE 13 — Conclusion
+  { bg:'linear-gradient(135deg, #0a0a0f 0%, #1a1033 50%, #0a0a0f 100%)', elements:[
+    {type:'html',x:60,y:40,w:200,h:80,html:'<div class="t-section-num">12</div>'},
+    {type:'text',x:60,y:110,w:500,h:50,cls:'t-section-title',text:'Conclusion'},
+    {type:'html',x:60,y:180,w:680,h:300,html:`<div class="t-body" contenteditable style="line-height:1.8">Ce projet de simulation nous a permis d'appliquer concrètement les grands principes de la gestion de projet.<br><br>L'utilisation de Trello nous a permis de maintenir une vision claire de l'avancement et de répartir les responsabilités.<br><br>L'analogie avec la gestion d'un SI est particulièrement éclairante : coordination de ressources humaines et techniques, respect de contraintes de qualité, de coût et de délai.</div><div style="margin-top:20px" class="deco-line"></div><div style="margin-top:14px;font-size:14px;color:var(--text-muted);font-style:italic" contenteditable>« Anticiper, structurer, communiquer et s'adapter »</div>`},
+    {type:'html',x:800,y:200,w:250,h:250,html:'<div style="width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,rgba(108,92,231,0.15),transparent 70%);border:1px solid rgba(108,92,231,0.1);display:flex;align-items:center;justify-content:center;flex-direction:column"><div style="font-size:40px;margin-bottom:8px">🏗️</div><div style="font-family:DM Serif Display;font-size:16px" contenteditable>Fin du rapport</div></div>'},
+  ]},
+];
+
+let currentSlideIndex = 0;
+let selectedElement = null;
+let isDragging = false;
+let isResizing = false;
+let dragOffset = { x:0, y:0 };
+let presenting = false;
+
+function initPresenter() {
+  // Check URL param for initial slide
+  const slideParam = urlParams.get('slide');
+  if (slideParam) {
+    const idx = parseInt(slideParam) - 1;
+    if (idx >= 0 && idx < slidesData.length) currentSlideIndex = idx;
+  }
+  renderSlide(currentSlideIndex);
+}
+
+function renderSlide(index) {
+  if (isRemote) return;
+  const slide = document.getElementById('currentSlide');
+  const data = slidesData[index];
+  slide.style.background = data.bg;
+  slide.style.opacity = '1';
+  slide.innerHTML = '';
+
+  data.elements.forEach((el, i) => {
+    const div = document.createElement('div');
+    div.className = 'drag-el';
+    div.dataset.index = i;
+    if (el.x || el.y) { div.style.left = el.x+'px'; div.style.top = el.y+'px'; }
+    if (el.w) div.style.width = el.w+'px';
+
+    if (el.type === 'text') div.innerHTML = `<div class="${el.cls}" contenteditable>${el.text}</div>`;
+    else if (el.type === 'html') div.innerHTML = el.html;
+    else if (el.type === 'image') { div.classList.add('img-el'); div.innerHTML = `<img src="${el.src}" style="width:100%">`; }
+
+    div.innerHTML += '<div class="resize-handle"></div>';
+    div.addEventListener('mousedown', startDrag);
+    div.addEventListener('click', e => { e.stopPropagation(); selectElement(div); });
+    div.addEventListener('contextmenu', e => { e.preventDefault(); selectElement(div); showContextMenu(e.clientX,e.clientY); });
+    slide.appendChild(div);
+  });
+
+  updatePageIndicator();
+  updateSidebar();
+
+  // Broadcast to remotes
+  broadcastToRemotes({ type:'slideChange', slide: currentSlideIndex });
+}
+
+function startDrag(e) {
+  if (e.target.classList.contains('resize-handle')) {
+    isResizing = true; isDragging = false;
+    selectedElement = e.target.closest('.drag-el');
+    selectElement(selectedElement); e.preventDefault(); return;
+  }
+  if (e.target.closest('[contenteditable]') && document.activeElement === e.target.closest('[contenteditable]')) return;
+  const el = e.target.closest('.drag-el');
+  if (!el || presenting) return;
+  selectElement(el); isDragging = true;
+  const rect = el.getBoundingClientRect();
+  dragOffset.x = e.clientX - rect.left;
+  dragOffset.y = e.clientY - rect.top;
+  e.preventDefault();
+}
+
+document.addEventListener('mousemove', e => {
+  if (isDragging && selectedElement) {
+    const parent = selectedElement.parentElement.getBoundingClientRect();
+    selectedElement.style.left = (e.clientX - parent.left - dragOffset.x)+'px';
+    selectedElement.style.top = (e.clientY - parent.top - dragOffset.y)+'px';
+    saveElementPosition();
+  }
+  if (isResizing && selectedElement) {
+    const rect = selectedElement.getBoundingClientRect();
+    selectedElement.style.width = (e.clientX - rect.left)+'px';
+    selectedElement.style.height = (e.clientY - rect.top)+'px';
+  }
+});
+document.addEventListener('mouseup', () => { isDragging = false; isResizing = false; });
+
+function selectElement(el) {
+  document.querySelectorAll('.drag-el').forEach(d => d.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  selectedElement = el;
+}
+function saveElementPosition() {
+  if (!selectedElement) return;
+  const i = parseInt(selectedElement.dataset.index);
+  const data = slidesData[currentSlideIndex].elements[i];
+  if (data) { data.x = parseInt(selectedElement.style.left)||0; data.y = parseInt(selectedElement.style.top)||0; }
+}
+
+if (!isRemote) {
+  document.getElementById('currentSlide').addEventListener('click', e => {
+    if (e.target === e.currentTarget) selectElement(null);
+  });
+}
+
+function updateSidebar() {
+  const sb = document.getElementById('sidebar');
+  sb.innerHTML = slidesData.map((_,i) =>
+    `<div class="slide-thumb ${i===currentSlideIndex?'active':''}" onclick="goToSlide(${i})">
+      <span class="num">${String(i+1).padStart(2,'0')}</span>
+      <span class="title">${slideTitles[i]||'Slide '+(i+1)}</span>
+      ${slidesData.length>1?`<button class="delete-slide" onclick="event.stopPropagation();deleteSlide(${i})">×</button>`:''}
+    </div>`
+  ).join('') + '<button id="addSlideBtn" onclick="addSlide()">+ Nouvelle slide</button>';
+}
+
+function goToSlide(i) { currentSlideIndex = i; renderSlide(i); }
+function nextSlide() { if (currentSlideIndex < slidesData.length-1) goToSlide(currentSlideIndex+1); }
+function prevSlide() { if (currentSlideIndex > 0) goToSlide(currentSlideIndex-1); }
+function updatePageIndicator() { document.getElementById('pageIndicator').textContent = `${currentSlideIndex+1} / ${slidesData.length}`; }
+
+function addSlide() {
+  slidesData.push({bg:'var(--bg-card)',elements:[
+    {type:'html',x:60,y:35,w:200,h:80,html:'<div class="t-section-num">++</div>'},
+    {type:'text',x:60,y:120,w:500,h:50,cls:'t-section-title',text:'Nouvelle slide'},
+    {type:'text',x:60,y:200,w:600,h:100,cls:'t-body',text:'Cliquez pour modifier le contenu...'},
+  ]});
+  slideTitles.push('Nouvelle slide');
+  goToSlide(slidesData.length-1);
+}
+function deleteSlide(i) {
+  if (slidesData.length<=1) return;
+  slidesData.splice(i,1); slideTitles.splice(i,1);
+  if (currentSlideIndex >= slidesData.length) currentSlideIndex = slidesData.length-1;
+  goToSlide(currentSlideIndex);
+}
+
+function addTextBlock() {
+  slidesData[currentSlideIndex].elements.push({type:'text',x:100,y:300,w:400,h:40,cls:'t-body',text:'Double-cliquez pour éditer...'});
+  renderSlide(currentSlideIndex);
+}
+function handleImageUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    slidesData[currentSlideIndex].elements.push({type:'image',x:200,y:200,w:300,h:0,src:ev.target.result});
+    renderSlide(currentSlideIndex);
+  };
+  reader.readAsDataURL(file); e.target.value='';
+}
+function addShape() {
+  slidesData[currentSlideIndex].elements.push({type:'html',x:200,y:250,w:150,h:150,
+    html:'<div style="width:100%;height:150px;border-radius:50%;background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));opacity:0.3"></div>'});
+  renderSlide(currentSlideIndex);
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('hidden');
+  document.getElementById('canvasArea').classList.toggle('full');
+}
+
+function showContextMenu(x,y) {
+  const m = document.getElementById('contextMenu');
+  m.style.left=x+'px'; m.style.top=y+'px'; m.style.display='block';
+}
+document.addEventListener('click', () => { document.getElementById('contextMenu').style.display='none'; });
+
+function duplicateEl() {
+  if (!selectedElement) return;
+  const i = parseInt(selectedElement.dataset.index);
+  const orig = JSON.parse(JSON.stringify(slidesData[currentSlideIndex].elements[i]));
+  orig.x+=20; orig.y+=20;
+  slidesData[currentSlideIndex].elements.push(orig);
+  renderSlide(currentSlideIndex);
+}
+function bringForward() { if(selectedElement) selectedElement.style.zIndex=(parseInt(selectedElement.style.zIndex||0))+1; }
+function sendBackward() { if(selectedElement) selectedElement.style.zIndex=Math.max(0,(parseInt(selectedElement.style.zIndex||0))-1); }
+function deleteEl() {
+  if (!selectedElement) return;
+  slidesData[currentSlideIndex].elements.splice(parseInt(selectedElement.dataset.index),1);
+  selectedElement=null; renderSlide(currentSlideIndex);
+}
+
+// QR per-slide panel
+function toggleQR() {
+  const p = document.getElementById('qrPanel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) generateQRCodes();
+}
+function generateQRCodes() {
+  const list = document.getElementById('qrList');
+  list.innerHTML = '';
+  slidesData.forEach((_,i)=>{
+    const item = document.createElement('div');
+    item.className='qr-item'; item.style.cursor='pointer';
+    item.onclick=()=>goToSlide(i);
+    const qrDiv=document.createElement('div');
+    qrDiv.style.cssText='width:70px;height:70px;flex-shrink:0';
+    const label=document.createElement('div');
+    label.className='qr-label';
+    label.innerHTML=`<strong>Slide ${i+1}</strong>${slideTitles[i]||''}`;
+    item.appendChild(qrDiv); item.appendChild(label); list.appendChild(item);
+    const url=`${window.location.href.split('?')[0]}?slide=${i+1}`;
+    new QRCode(qrDiv,{text:url,width:70,height:70,colorDark:'#6c5ce7',colorLight:'#1a1a26',correctLevel:QRCode.CorrectLevel.M});
+  });
+}
+
+function togglePresent() {
+  presenting=!presenting;
+  document.body.classList.toggle('presenting',presenting);
+  if(presenting) renderSlide(currentSlideIndex);
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.target.closest('[contenteditable]')) return;
+  if (e.key==='ArrowRight'||e.key==='ArrowDown'){e.preventDefault();nextSlide();}
+  if (e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();prevSlide();}
+  if (e.key==='Escape'&&presenting) togglePresent();
+  if (e.key==='Delete'&&selectedElement) deleteEl();
+});
+
+// ═════════════════════════════════════════════════
+//  INIT — must come after all declarations
+// ═════════════════════════════════════════════════
+if (isRemote) {
+  document.body.classList.add('remote-mode');
+  initRemoteController();
+} else {
+  initPresenter();
+}
+</script>
+</body>
+</html>
