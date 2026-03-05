@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChantierBoard — Centre Commercial</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--surf:#161b22;--surf2:#21262d;--bord:#30363d;
+  --acc:#f0a500;--red:#f85149;--blue:#58a6ff;--green:#56d364;--pur:#bc8cff;--ora:#e3b341;
+  --tx:#c9d1d9;--mu:#8b949e;--txb:#f0f6fc;
+  --ant:#f0a500;--len:#58a6ff;--sai:#56d364;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* NAV */
+nav{background:var(--surf);border-bottom:1px solid var(--bord);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:50;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:var(--txb);display:flex;align-items:center;gap:7px;}
+.logo-i{width:26px;height:26px;background:var(--acc);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.tabs{display:flex;gap:2px;}
+.tab{padding:4px 11px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--mu);transition:all .12s;white-space:nowrap;}
+.tab:hover{color:var(--tx);background:var(--surf2);}
+.tab.on{background:var(--acc);color:#000;font-family:'Syne',sans-serif;font-weight:700;}
+.nav-r{display:flex;align-items:center;gap:6px;}
+.mb{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:16px;font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid;transition:all .12s;user-select:none;}
+.mb.off{opacity:.2;}
+.mb-a{border-color:var(--ant);color:var(--ant);background:rgba(240,165,0,.07);}
+.mb-l{border-color:var(--len);color:var(--len);background:rgba(88,166,255,.07);}
+.mb-s{border-color:var(--sai);color:var(--sai);background:rgba(86,211,100,.07);}
+.dot{width:7px;height:7px;border-radius:50%;}
+
+/* PAGES */
+/* BOARD */
+#pgBoard{display:none;}
+#pgBoard.on{display:block;height:calc(100vh - 50px);overflow-x:auto;overflow-y:hidden;padding:14px 16px;white-space:nowrap;}
+#boardWrap{display:inline-flex;flex-direction:row;gap:12px;align-items:flex-start;height:100%;padding-bottom:14px;white-space:normal;}
+
+/* SCROLL PAGES */
+.pg{display:none;height:calc(100vh - 50px);overflow-y:auto;padding:18px 22px;scrollbar-width:thin;scrollbar-color:var(--bord) transparent;}
+.pg.on{display:block;}
+
+/* LIST */
+.lst{background:var(--surf);border:1px solid var(--bord);border-radius:9px;width:260px;min-width:260px;display:flex;flex-direction:column;height:calc(100vh - 88px);flex-shrink:0;}
+.lst-h{padding:9px 10px 7px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--bord);flex-shrink:0;}
+.lst-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.lst-ti{font-family:'Syne',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;background:none;border:none;color:var(--txb);outline:none;flex:1;cursor:pointer;min-width:0;}
+.lst-ti:focus{border-bottom:1px solid var(--acc);}
+.lst-cnt{background:var(--surf2);color:var(--mu);font-size:10px;font-weight:600;padding:1px 5px;border-radius:7px;flex-shrink:0;}
+.lmb{background:none;border:none;color:var(--mu);cursor:pointer;padding:2px 3px;border-radius:3px;font-size:13px;position:relative;flex-shrink:0;}
+.lmb:hover{color:var(--tx);background:var(--surf2);}
+.lst-cards{flex:1;overflow-y:auto;overflow-x:hidden;padding:7px 7px 3px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin;scrollbar-color:var(--bord) transparent;min-height:0;}
+.lst-foot{padding:5px 7px 7px;flex-shrink:0;}
+.btn-ac{width:100%;background:none;border:1px dashed var(--bord);color:var(--mu);padding:5px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .12s;}
+.btn-ac:hover{border-color:var(--acc);color:var(--acc);}
+.btn-nl{display:inline-flex;align-items:center;justify-content:center;gap:5px;background:rgba(255,255,255,.04);border:1px dashed var(--bord);color:var(--mu);padding:8px 14px;border-radius:9px;font-size:12px;cursor:pointer;min-width:190px;width:190px;height:46px;flex-shrink:0;vertical-align:top;transition:all .12s;}
+.btn-nl:hover{border-color:var(--acc);color:var(--acc);}
+
+/* CARD */
+.card{background:var(--surf2);border:1px solid var(--bord);border-left:3px solid transparent;border-radius:6px;padding:8px 9px;cursor:grab;transition:all .12s;animation:ci .15s ease;}
+@keyframes ci{from{opacity:0;transform:translateY(-3px);}to{opacity:1;transform:translateY(0);}}
+.card:hover{transform:translateY(-1px);box-shadow:0 3px 14px rgba(0,0,0,.4);border-color:#444c56;}
+.card:active{cursor:grabbing;}
+.card.dragging{opacity:.3;}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:5px;}
+.card-title{font-size:12px;line-height:1.4;flex:1;word-break:break-word;color:var(--txb);}
+.card-desc{font-size:10px;color:var(--mu);margin-top:2px;line-height:1.35;}
+.card-act{display:flex;gap:1px;opacity:0;transition:opacity .1s;flex-shrink:0;}
+.card:hover .card-act{opacity:1;}
+.cbtn{background:none;border:none;color:var(--mu);cursor:pointer;padding:1px 3px;border-radius:3px;font-size:11px;}
+.cbtn:hover{color:var(--tx);background:var(--bord);}
+.cbtn.del:hover{color:var(--red);}
+.card-meta{display:flex;align-items:center;gap:3px;margin-top:6px;flex-wrap:wrap;}
+.cm{font-size:9px;font-weight:500;padding:1px 6px;border-radius:7px;border:1px solid;}
+.cm-antonin{color:var(--ant);border-color:rgba(240,165,0,.3);background:rgba(240,165,0,.07);}
+.cm-lenny{color:var(--len);border-color:rgba(88,166,255,.3);background:rgba(88,166,255,.07);}
+.cm-said{color:var(--sai);border-color:rgba(86,211,100,.3);background:rgba(86,211,100,.07);}
+.cl{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:.3px;text-transform:uppercase;}
+.cl-preparation{background:rgba(240,165,0,.14);color:var(--ant);}
+.cl-coordination{background:rgba(88,166,255,.14);color:var(--len);}
+.cl-controle{background:rgba(86,211,100,.14);color:var(--sai);}
+.cl-securite{background:rgba(248,81,73,.14);color:var(--red);}
+.cl-livraison{background:rgba(52,211,153,.14);color:#3ddbb5;}
+.cl-pilotage{background:rgba(227,179,65,.14);color:var(--ora);}
+.cl-risque{background:rgba(248,81,73,.14);color:var(--red);}
+.cl-jalon{background:rgba(188,140,255,.14);color:var(--pur);}
+.card-jalon{border-left-color:var(--pur)!important;}
+.empty-s{color:var(--mu);font-size:11px;text-align:center;padding:14px 0;font-style:italic;}
+
+/* SECTION TITLES */
+.sec{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:var(--txb);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.box{background:var(--surf);border:1px solid var(--bord);border-radius:9px;padding:16px;margin-bottom:16px;}
+.box-ti{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--txb);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+
+/* BUTTONS */
+.btn-edit{background:none;border:1px solid var(--bord);color:var(--mu);padding:3px 9px;border-radius:5px;font-size:10px;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.btn-edit:hover{border-color:var(--acc);color:var(--acc);}
+.btn-add-row{background:none;border:1px dashed var(--bord);color:var(--mu);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;transition:all .12s;margin-top:8px;}
+.btn-add-row:hover{border-color:var(--green);color:var(--green);}
+.btn-del-row{background:none;border:none;color:var(--mu);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:3px;}
+.btn-del-row:hover{color:var(--red);}
+.btn-save-row{background:var(--acc);color:#000;border:none;padding:4px 10px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:18px;}
+.kpi-card{background:var(--surf);border:1px solid var(--bord);border-radius:9px;padding:14px;position:relative;overflow:hidden;cursor:pointer;transition:all .15s;}
+.kpi-card:hover{border-color:#444c56;transform:translateY(-1px);}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kav::before{background:var(--blue);}
+.kpl::before{background:var(--acc);}
+.kbu::before{background:var(--green);}
+.kse::before{background:var(--red);}
+.knc::before{background:var(--pur);}
+.kpi-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--mu);margin-bottom:6px;}
+.kpi-val{font-family:'Syne',sans-serif;font-weight:800;font-size:30px;line-height:1;margin-bottom:3px;}
+.kpi-sub{font-size:10px;color:var(--mu);}
+.kpi-bar-w{margin-top:9px;height:4px;background:var(--surf2);border-radius:2px;overflow:hidden;}
+.kpi-bar{height:100%;border-radius:2px;transition:width .5s ease;}
+.kpi-al{font-size:9px;font-weight:700;margin-top:7px;padding:2px 7px;border-radius:4px;display:inline-block;}
+.a-ok{background:rgba(86,211,100,.1);color:var(--green);}
+.a-warn{background:rgba(240,165,0,.1);color:var(--acc);}
+.a-bad{background:rgba(248,81,73,.1);color:var(--red);}
+
+/* TABLES */
+.tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.tbl th{background:var(--surf2);color:var(--mu);font-weight:600;padding:7px 10px;text-align:left;border-bottom:1px solid var(--bord);font-size:10px;text-transform:uppercase;letter-spacing:.4px;}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--bord);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:rgba(255,255,255,.015);}
+.tbl input,.tbl select,.tbl textarea{background:var(--surf2);border:1px solid var(--bord);color:var(--tx);padding:3px 6px;border-radius:4px;font-family:'DM Sans',sans-serif;font-size:11px;outline:none;width:100%;}
+.tbl input:focus,.tbl select:focus,.tbl textarea:focus{border-color:var(--acc);}
+
+/* RACI */
+.raci-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.raci-tbl th{background:var(--surf2);color:var(--mu);font-weight:600;padding:7px 10px;text-align:center;border:1px solid var(--bord);font-size:10px;text-transform:uppercase;}
+.raci-tbl th:first-child{text-align:left;}
+.raci-tbl td{padding:7px 10px;border:1px solid var(--bord);text-align:center;}
+.raci-tbl td:first-child{text-align:left;font-weight:500;color:var(--txb);}
+.raci-tbl tr:hover td{background:rgba(255,255,255,.015);}
+.rR{background:rgba(240,165,0,.18);color:var(--acc);font-weight:700;border-radius:3px;padding:1px 6px;display:inline-block;cursor:pointer;}
+.rA{background:rgba(88,166,255,.18);color:var(--blue);font-weight:700;border-radius:3px;padding:1px 6px;display:inline-block;cursor:pointer;}
+.rC{background:rgba(86,211,100,.15);color:var(--green);font-weight:600;border-radius:3px;padding:1px 6px;display:inline-block;cursor:pointer;}
+.rI{color:var(--mu);font-size:10px;cursor:pointer;}
+
+/* GANTT */
+.gantt-wrap{overflow-x:auto;}
+.gbar-wrap{height:16px;background:var(--surf2);border-radius:3px;position:relative;overflow:hidden;}
+.gbar{height:100%;border-radius:3px;position:absolute;display:flex;align-items:center;padding:0 5px;font-size:9px;font-weight:600;color:#000;}
+
+/* WBS */
+.wbs-c{display:flex;flex-direction:column;align-items:center;overflow-x:auto;padding:4px;}
+.wbs-root{background:var(--acc);color:#000;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;padding:9px 22px;border-radius:7px;}
+.wbs-vl{width:2px;height:18px;background:var(--bord);}
+.wbs-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;position:relative;padding-top:2px;}
+.wbs-row::before{content:'';position:absolute;top:0;left:10%;right:10%;height:2px;background:var(--bord);}
+.wbs-lot{display:flex;flex-direction:column;align-items:center;}
+.wbs-lot::before{content:'';width:2px;height:18px;background:var(--bord);}
+.wbs-lot-box{border:1px solid;border-radius:7px;padding:6px 10px;font-size:10px;font-weight:700;text-align:center;min-width:88px;}
+.wbs-subs{margin-top:5px;display:flex;flex-direction:column;gap:3px;}
+.wbs-sub{background:var(--surf2);border:1px solid var(--bord);border-radius:4px;padding:3px 7px;font-size:9px;color:var(--mu);text-align:center;}
+
+/* RISK */
+.risk-mat{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;}
+.rmc{border-radius:4px;height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;font-weight:600;text-align:center;padding:2px;line-height:1.2;}
+.rc-lo{background:rgba(86,211,100,.14);border:1px solid rgba(86,211,100,.2);color:var(--green);}
+.rc-me{background:rgba(240,165,0,.14);border:1px solid rgba(240,165,0,.2);color:var(--acc);}
+.rc-hi{background:rgba(248,81,73,.16);border:1px solid rgba(248,81,73,.25);color:var(--red);}
+.crit-hi{color:var(--red);font-weight:700;}
+.crit-me{color:var(--acc);font-weight:600;}
+.crit-lo{color:var(--green);}
+.freq-b{font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;text-transform:uppercase;}
+.fq-h{background:rgba(88,166,255,.14);color:var(--blue);}
+.fq-m{background:rgba(86,211,100,.14);color:var(--green);}
+.fq-t{background:rgba(240,165,0,.14);color:var(--acc);}
+.fq-d{background:rgba(248,81,73,.1);color:var(--red);}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+@media(max-width:800px){.charts-row{grid-template-columns:1fr;}}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(5px);z-index:500;display:flex;align-items:center;justify-content:center;animation:fi .1s ease;}
+@keyframes fi{from{opacity:0;}to{opacity:1;}}
+.md{background:var(--surf);border:1px solid var(--bord);border-radius:11px;padding:22px;width:380px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 18px 55px rgba(0,0,0,.7);animation:su .14s ease;}
+.md.wide{width:560px;}
+@keyframes su{from{transform:translateY(14px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.md h2{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--txb);margin-bottom:14px;}
+.mf{margin-bottom:10px;}
+.mf label{display:block;font-size:10px;font-weight:600;color:var(--mu);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px;}
+.mf input,.mf select,.mf textarea{width:100%;background:var(--surf2);border:1px solid var(--bord);color:var(--tx);padding:7px 9px;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;transition:border-color .12s;}
+.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:var(--acc);}
+.mf textarea{resize:vertical;min-height:55px;}
+.mf select option{background:var(--surf2);}
+.ma{display:flex;gap:7px;margin-top:16px;justify-content:flex-end;}
+.bp{background:var(--acc);color:#000;border:none;padding:7px 15px;border-radius:5px;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;cursor:pointer;}
+.bp:hover{background:#ffb920;}
+.bs{background:var(--surf2);color:var(--mu);border:1px solid var(--bord);padding:7px 12px;border-radius:5px;font-size:11px;cursor:pointer;}
+.bs:hover{color:var(--tx);}
+.br{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.3);padding:7px 12px;border-radius:5px;font-size:11px;cursor:pointer;}
+.br:hover{background:rgba(248,81,73,.2);}
+
+/* STATUS columns */
+.lst-done .lst-ti{color:var(--green)!important;}
+.lst-inprogress .lst-ti{color:var(--acc)!important;}
+.card-done{opacity:.5;border-left-color:var(--green)!important;}
+.card-done:hover{opacity:.75!important;}
+.done-title{text-decoration:line-through;color:var(--mu);}
+.cbtn-done{background:none;border:none;cursor:pointer;font-size:14px;padding:0 4px 0 0;flex-shrink:0;transition:transform .12s;line-height:1;}
+.cbtn-done:hover{transform:scale(1.2);}
+.cbtn-done.is-done{opacity:.7;}
+.btn-reset{background:none;border:1px solid rgba(248,81,73,.4);color:var(--red);padding:3px 9px;border-radius:5px;font-size:10px;cursor:pointer;transition:all .12s;}
+.btn-reset:hover{background:rgba(248,81,73,.1);}
+
+/* DROPDOWN */
+.ddm{position:absolute;top:calc(100%+2px);right:0;background:var(--surf);border:1px solid var(--bord);border-radius:6px;padding:3px;z-index:200;min-width:140px;box-shadow:0 4px 18px rgba(0,0,0,.5);}
+.ddi{display:flex;align-items:center;gap:5px;padding:5px 9px;border-radius:4px;font-size:11px;cursor:pointer;color:var(--tx);border:none;background:none;width:100%;text-align:left;}
+.ddi:hover{background:var(--surf2);}
+.ddi.danger{color:var(--red);}
+.ddi.danger:hover{background:rgba(248,81,73,.08);}
+
+/* TOAST */
+.tc{position:fixed;bottom:16px;right:16px;z-index:600;display:flex;flex-direction:column;gap:5px;}
+.toast{background:var(--surf);border:1px solid var(--bord);border-left:3px solid var(--acc);padding:8px 12px;border-radius:5px;font-size:11px;box-shadow:0 3px 16px rgba(0,0,0,.5);animation:tin .2s ease;color:var(--txb);}
+@keyframes tin{from{transform:translateX(110%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--bord);border-radius:6px;}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo"><div class="logo-i">🏗️</div>ChantierBoard</div>
+  <div class="tabs">
+    <button class="tab on"  onclick="showPg('Board',this)">📋 Tâches</button>
+    <button class="tab"     onclick="showPg('Kpi',this)">📊 KPI</button>
+    <button class="tab"     onclick="showPg('Diag',this)">📐 Diagrammes</button>
+    <button class="tab"     onclick="showPg('Risk',this)">⚠️ Risques</button>
+    <button class="tab"     onclick="showPg('Comm',this)">📡 Communication</button>
+  </div>
+  <div class="nav-r">
+    <div class="mb mb-a" data-m="Antonin" onclick="toggleF('Antonin')"><div class="dot" style="background:var(--ant)"></div>Antonin</div>
+    <div class="mb mb-l" data-m="Lenny"   onclick="toggleF('Lenny')">  <div class="dot" style="background:var(--len)"></div>Lenny</div>
+    <div class="mb mb-s" data-m="Said"    onclick="toggleF('Said')">   <div class="dot" style="background:var(--sai)"></div>Said</div>
+    <button class="btn-reset" onclick="resetData()" title="Remettre les données par défaut">↺ Reset</button>
+  </div>
+</nav>
+
+<!-- BOARD -->
+<div id="pgBoard" class="on">
+  <div id="boardWrap"></div>
+</div>
+
+<!-- KPI -->
+<div id="pgKpi" class="pg">
+  <div class="sec">📊 Indicateurs de suivi (KPI) <button class="btn-edit" onclick="openAddKpi()">＋ Ajouter KPI</button></div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+  <div class="charts-row">
+    <div class="box"><div class="box-ti">📈 Avancement par lot (%)</div><div style="height:190px"><canvas id="cAv"></canvas></div></div>
+    <div class="box"><div class="box-ti">💰 Budget consommé (%)</div><div style="height:190px"><canvas id="cBu"></canvas></div></div>
+  </div>
+  <div class="box"><div class="box-ti">📅 Évolution écart planning (jours)</div><div style="height:170px"><canvas id="cEc"></canvas></div></div>
+</div>
+
+<!-- DIAGRAMMES -->
+<div id="pgDiag" class="pg">
+  <div class="sec">📐 Diagrammes</div>
+  <!-- GANTT -->
+  <div class="box">
+    <div class="box-ti">📅 Planning Gantt <button class="btn-edit" onclick="openAddGantt()">＋ Ajouter lot</button></div>
+    <div class="gantt-wrap"><table class="tbl" id="ganttTbl"></table></div>
+  </div>
+  <!-- WBS -->
+  <div class="box">
+    <div class="box-ti">🗂️ WBS — Découpage en lots <button class="btn-edit" onclick="openAddWbs()">＋ Ajouter lot</button></div>
+    <div id="wbsCont"></div>
+    <table class="tbl" style="margin-top:14px" id="wbsDetailTbl"></table>
+  </div>
+  <!-- RACI -->
+  <div class="box">
+    <div class="box-ti">👥 Matrice RACI
+      <span style="display:flex;gap:6px;">
+        <button class="btn-edit" onclick="openAddRaciRow()">＋ Activité</button>
+        <button class="btn-edit" onclick="openAddRaciCol()">＋ Acteur</button>
+      </span>
+    </div>
+    <div style="font-size:10px;color:var(--mu);margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap;">
+      <span><span class="rR">R</span> Responsable</span><span><span class="rA">A</span> Acteur/Valide</span><span><span class="rC">C</span> Consulté</span><span class="rI">I — Informé</span>
+      <span style="color:var(--mu);font-style:italic">Cliquer sur une cellule pour changer la valeur</span>
+    </div>
+    <div style="overflow-x:auto"><table class="raci-tbl" id="raciTbl"></table></div>
+  </div>
+</div>
+
+<!-- RISQUES -->
+<div id="pgRisk" class="pg">
+  <div class="sec">⚠️ Risques</div>
+  <div class="charts-row">
+    <div class="box">
+      <div class="box-ti">🎯 Matrice P × I</div>
+      <div style="font-size:10px;color:var(--mu);margin-bottom:6px;display:flex;justify-content:space-between;"><span>Impact →</span><span>Probabilité ↑</span></div>
+      <div id="riskMat"></div>
+      <div style="margin-top:10px;font-size:10px;color:var(--mu);display:flex;gap:10px;flex-wrap:wrap;">
+        <span style="background:rgba(248,81,73,.16);color:var(--red);padding:2px 7px;border-radius:3px;font-weight:700;">≥12</span>Élevé
+        <span style="background:rgba(240,165,0,.14);color:var(--acc);padding:2px 7px;border-radius:3px;font-weight:700;">6–11</span>Moyen
+        <span style="background:rgba(86,211,100,.12);color:var(--green);padding:2px 7px;border-radius:3px;font-weight:700;">&lt;6</span>Faible
+      </div>
+    </div>
+    <div class="box"><div class="box-ti">📊 Répartition criticité</div><div style="height:200px"><canvas id="cRisk"></canvas></div></div>
+  </div>
+  <div class="box">
+    <div class="box-ti">📋 Registre des risques <button class="btn-edit" onclick="openAddRisk()">＋ Ajouter risque</button></div>
+    <div style="overflow-x:auto"><table class="tbl" id="riskTbl"></table></div>
+  </div>
+  <div class="box">
+    <div class="box-ti">📏 Échelles d'évaluation</div>
+    <div style="overflow-x:auto"><table class="tbl" id="scaleTbl"></table></div>
+  </div>
+  <div class="box">
+    <div class="box-ti">🗂️ Typologies de risques <button class="btn-edit" onclick="openAddTypo()">＋ Ajouter</button></div>
+    <table class="tbl" id="typoTbl"></table>
+  </div>
+</div>
+
+<!-- COMMUNICATION -->
+<div id="pgComm" class="pg">
+  <div class="sec">📡 Communication</div>
+  <div class="box">
+    <div class="box-ti">📨 Plan de communication <button class="btn-edit" onclick="openAddComm()">＋ Ajouter</button></div>
+    <div style="overflow-x:auto"><table class="tbl" id="commTbl"></table></div>
+  </div>
+  <div class="box">
+    <div class="box-ti">🤝 Parties prenantes <button class="btn-edit" onclick="openAddPp()">＋ Ajouter</button></div>
+    <table class="tbl" id="ppTbl"></table>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="mo" id="moCard" style="display:none" onclick="closeMoOv(event,'moCard')">
+  <div class="md">
+    <h2 id="moCardTi">➕ Nouvelle carte</h2>
+    <div class="mf"><label>Titre *</label><input id="cTitle"/></div>
+    <div class="mf"><label>Description</label><textarea id="cDesc"></textarea></div>
+    <div class="mf"><label>Responsable</label><select id="cMember"><option value="">— Aucun —</option><option>Antonin</option><option>Lenny</option><option>Said</option></select></div>
+    <div class="mf"><label>Label</label><select id="cLabel"><option value="">— Aucun —</option><option value="preparation">Préparation</option><option value="coordination">Coordination</option><option value="controle">Contrôle</option><option value="securite">Sécurité</option><option value="livraison">Livraison</option><option value="pilotage">Pilotage</option><option value="risque">Risque</option><option value="jalon">Jalon ⭐</option></select></div>
+    <div class="ma"><button class="bs" onclick="closeMo('moCard')">Annuler</button><button class="bp" onclick="saveCard()">Enregistrer</button></div>
+  </div>
+</div>
+<div class="mo" id="moList" style="display:none" onclick="closeMoOv(event,'moList')">
+  <div class="md"><h2>📁 Nouvelle liste</h2>
+    <div class="mf"><label>Nom *</label><input id="lName"/></div>
+    <div class="ma"><button class="bs" onclick="closeMo('moList')">Annuler</button><button class="bp" onclick="saveList()">Créer</button></div>
+  </div>
+</div>
+<div class="mo" id="moKpi" style="display:none" onclick="closeMoOv(event,'moKpi')">
+  <div class="md"><h2 id="moKpiTi">KPI</h2>
+    <input type="hidden" id="kpiId"/>
+    <div class="mf"><label>Nom du KPI</label><input id="kpiLbl"/></div>
+    <div class="mf"><label>Valeur actuelle</label><input type="number" id="kpiVal" step="0.1"/></div>
+    <div class="mf"><label>Unité (ex: %, j, …)</label><input id="kpiUnit"/></div>
+    <div class="mf"><label>Objectif</label><input id="kpiObj"/></div>
+    <div class="mf"><label>Fréquence de mesure</label><input id="kpiFreq"/></div>
+    <div class="mf"><label>Alerte si</label><input id="kpiAlert"/></div>
+    <div class="ma"><button class="br" id="kpiDelBtn" onclick="delKpi()" style="display:none">Supprimer</button><button class="bs" onclick="closeMo('moKpi')">Annuler</button><button class="bp" onclick="saveKpi()">Enregistrer</button></div>
+  </div>
+</div>
+<div class="mo" id="moGantt" style="display:none" onclick="closeMoOv(event,'moGantt')">
+  <div class="md"><h2 id="moGanttTi">Lot Gantt</h2>
+    <input type="hidden" id="ganttId"/>
+    <div class="mf"><label>Nom du lot *</label><input id="ganttName"/></div>
+    <div class="mf"><label>Durée (mois) *</label><input type="number" id="ganttDur" min="1"/></div>
+    <div class="mf"><label>Début (mois depuis 0) *</label><input type="number" id="ganttStart" min="0"/></div>
+    <div class="mf"><label>Couleur (hex)</label><input id="ganttColor" type="color"/></div>
+    <div class="mf"><label>Jalon clé</label><input id="ganttJalon"/></div>
+    <div class="ma"><button class="br" id="ganttDelBtn" onclick="delGantt()" style="display:none">Supprimer</button><button class="bs" onclick="closeMo('moGantt')">Annuler</button><button class="bp" onclick="saveGantt()">Enregistrer</button></div>
+  </div>
+</div>
+<div class="mo" id="moWbs" style="display:none" onclick="closeMoOv(event,'moWbs')">
+  <div class="md wide"><h2 id="moWbsTi">Lot WBS</h2>
+    <input type="hidden" id="wbsId"/>
+    <div class="mf"><label>Nom court (ex: LOT 1)</label><input id="wbsNom"/></div>
+    <div class="mf"><label>Libellé (ex: Préparation)</label><input id="wbsLib"/></div>
+    <div class="mf"><label>Couleur</label><input id="wbsColor" type="color"/></div>
+    <div class="mf"><label>Sous-tâches (une par ligne)</label><textarea id="wbsSubs" rows="5"></textarea></div>
+    <div class="mf"><label>Sous-tâches tableau (virgules)</label><input id="wbsSubsTable"/></div>
+    <div class="ma"><button class="br" id="wbsDelBtn" onclick="delWbs()" style="display:none">Supprimer</button><button class="bs" onclick="closeMo('moWbs')">Annuler</button><button class="bp" onclick="saveWbs()">Enregistrer</button></div>
+  </div>
+</div>
+<div class="mo" id="moRaciRow" style="display:none" onclick="closeMoOv(event,'moRaciRow')">
+  <div class="md"><h2>➕ Nouvelle activité RACI</h2>
+    <div class="mf"><label>Nom de l'activité *</label><input id="raciRowName"/></div>
+    <div class="ma"><button class="bs" onclick="closeMo('moRaciRow')">Annuler</button><button class="bp" onclick="saveRaciRow()">Ajouter</button></div>
+  </div>
+</div>
+<div class="mo" id="moRaciCol" style="display:none" onclick="closeMoOv(event,'moRaciCol')">
+  <div class="md"><h2>➕ Nouvel acteur RACI</h2>
+    <div class="mf"><label>Nom de l'acteur *</label><input id="raciColName"/></div>
+    <div class="ma"><button class="bs" onclick="closeMo('moRaciCol')">Annuler</button><button class="bp" onclick="saveRaciCol()">Ajouter</button></div>
+  </div>
+</div>
+<div class="mo" id="moRisk" style="display:none" onclick="closeMoOv(event,'moRisk')">
+  <div class="md wide"><h2 id="moRiskTi">Risque</h2>
+    <input type="hidden" id="riskId"/>
+    <div class="mf"><label>Nom du risque *</label><input id="riskName"/></div>
+    <div class="mf"><label>Probabilité (1–5)</label><input type="number" id="riskP" min="1" max="5"/></div>
+    <div class="mf"><label>Impact (1–5)</label><input type="number" id="riskI" min="1" max="5"/></div>
+    <div class="mf"><label>Niveau (Élevé / Moyen / Faible)</label><input id="riskNiv"/></div>
+    <div class="mf"><label>Type</label><input id="riskType"/></div>
+    <div class="mf"><label>Action préventive</label><input id="riskPrev"/></div>
+    <div class="mf"><label>Action corrective</label><input id="riskCorr"/></div>
+    <div class="ma"><button class="br" id="riskDelBtn" onclick="delRisk()" style="display:none">Supprimer</button><button class="bs" onclick="closeMo('moRisk')">Annuler</button><button class="bp" onclick="saveRisk()">Enregistrer</button></div>
+  </div>
+</div>
+<div class="mo" id="moTypo" style="display:none" onclick="closeMoOv(event,'moTypo')">
+  <div class="md"><h2 id="moTypoTi">Typologie</h2>
+    <input type="hidden" id="typoId"/>
+    <div class="mf"><label>Type *</label><input id="typoType"/></div>
+    <div class="mf"><label>Exemple concret</label><input id="typoEx"/></div>
+    <div class="ma"><button class="br" id="typoDelBtn" onclick="delTypo()" style="display:none">Supprimer</button><button class="bs" onclick="closeMo('moTypo')">Annuler</button><button class="bp" onclick="saveTypo()">Enregistrer</button></div>
+  </div>
+</div>
+<div class="mo" id="moComm" style="display:none" onclick="closeMoOv(event,'moComm')">
+  <div class="md"><h2 id="moCommTi">Communication</h2>
+    <input type="hidden" id="commId"/>
+    <div class="mf"><label>Type *</label><input id="commType"/></div>
+    <div class="mf"><label>Objectif</label><input id="commObj"/></div>
+    <div class="mf"><label>Fréquence</label><select id="commFreq"><option>Hebdomadaire</option><option>Mensuel</option><option>Trimestriel</option><option>À la demande</option></select></div>
+    <div class="mf"><label>Destinataires</label><input id="commDest"/></div>
+    <div class="ma"><button class="br" id="commDelBtn" onclick="delComm()" style="display:none">Supprimer</button><button class="bs" onclick="closeMo('moComm')">Annuler</button><button class="bp" onclick="saveComm()">Enregistrer</button></div>
+  </div>
+</div>
+<div class="mo" id="moPp" style="display:none" onclick="closeMoOv(event,'moPp')">
+  <div class="md"><h2 id="moPpTi">Partie prenante</h2>
+    <input type="hidden" id="ppId"/>
+    <div class="mf"><label>Nom *</label><input id="ppNom"/></div>
+    <div class="mf"><label>Rôle</label><input id="ppRole"/></div>
+    <div class="mf"><label>Attentes principales</label><input id="ppAtt"/></div>
+    <div class="ma"><button class="br" id="ppDelBtn" onclick="delPp()" style="display:none">Supprimer</button><button class="bs" onclick="closeMo('moPp')">Annuler</button><button class="bp" onclick="savePp()">Enregistrer</button></div>
+  </div>
+</div>
+<div class="tc" id="toastC"></div>
+
+<script>
+const SK='chantier_v5';
+const D={
+  kpi:[
+    {id:'k1',lbl:'Avancement chantier',val:92,unit:'%',obj:'Suivre la progression physique',freq:'Hebdomadaire',alerte:'Écart > 5%',cls:'kav',color:'var(--blue)'},
+    {id:'k2',lbl:'Écart planning',val:3,unit:'j',obj:'Respecter les délais',freq:'Hebdomadaire',alerte:'Retard > 5 jours',cls:'kpl',color:'var(--acc)'},
+    {id:'k3',lbl:'Budget consommé',val:91,unit:'%',obj:'Maîtriser les coûts',freq:'Mensuel',alerte:'Consommé > 90%',cls:'kbu',color:'var(--green)'},
+    {id:'k4',lbl:'Incidents sécurité',val:0,unit:'',obj:'Garantir la sécurité du chantier',freq:'Hebdomadaire',alerte:'Tout incident',cls:'kse',color:'var(--red)'},
+    {id:'k5',lbl:'Non-conformités restantes',val:8,unit:'',obj:'Assurer la qualité des travaux',freq:'Mensuel',alerte:'> 3 non-conformités',cls:'knc',color:'var(--pur)'},
+  ],
+  kpiHist:{k2:[0,1,3,5,4,3]},
+  gantt:[
+    {id:'g1',name:"Lot 1 — Préparation",dur:3,start:0,color:'#f0a500',jalon:'J1 : Obtention du permis de construire'},
+    {id:'g2',name:"Lot 2 — Conception",dur:4,start:3,color:'#e3b341',jalon:'J2 : Validation des plans architecturaux'},
+    {id:'g3',name:"Lot 3 — Gros œuvre",dur:8,start:7,color:'#58a6ff',jalon:"J3 : Fin hors d\'eau / hors d\'air"},
+    {id:'g4',name:"Lot 4 — Second œuvre",dur:6,start:15,color:'#4a90d9',jalon:'J4 : Réception provisoire des travaux'},
+    {id:'g5',name:"Lot 5 — Aménagement commercial",dur:2,start:21,color:'#56d364',jalon:'J5 : Levée des réserves'},
+    {id:'g6',name:"Lot 6 — Livraison",dur:1,start:23,color:'#3ddbb5',jalon:'J6 : Ouverture commerciale'},
+  ],
+  wbs:[
+    {id:'w1',nom:'LOT 1',lib:'Préparation',color:'#f0a500',subs:['Étude terrain','Permis construire','Install. chantier','Choix prestataires'],subsTable:'Étude du terrain, permis de construire, installation chantier, choix prestataire'},
+    {id:'w2',nom:'LOT 2',lib:'Conception',color:'#e3b341',subs:['Plans architecturaux','Validation technique','Maquettes numériques'],subsTable:'Plans architecturaux, validation technique, maquettes numériques'},
+    {id:'w3',nom:'LOT 3',lib:'Gros œuvre',color:'#58a6ff',subs:['Terrassement','Fondations','Structure béton'],subsTable:'Terrassement, fondations, structure béton'},
+    {id:'w4',nom:'LOT 4',lib:'Second œuvre',color:'#4a90d9',subs:['Électricité','Plomberie','Climatisation','Sécurité incendie','Cloisons'],subsTable:'Électricité, plomberie, climatisation, sécurité incendie, cloisons'},
+    {id:'w5',nom:'LOT 5',lib:'Aménagement commercial',color:'#56d364',subs:['Vitrines','Parkings','Signalétique','Espaces communs'],subsTable:'Vitrines, parkings, signalétique, espaces communs'},
+    {id:'w6',nom:'LOT 6',lib:'Livraison',color:'#3ddbb5',subs:['Inspection finale','Levée réserves','Réception officielle','Ouverture'],subsTable:'Inspection finale, levée des réserves, réception officielle, ouverture'},
+  ],
+  raciCols:['MOA','Chef projet','Architecte','Entreprise BTP','Bureau contrôle'],
+  raciRows:[
+    {t:'Validation du projet',v:['A','R','C','I','I']},
+    {t:'Planning',v:['I','R','C','C','I']},
+    {t:'Conception des plans',v:['I','A','R','C','C']},
+    {t:'Études techniques',v:['I','C','A','R','C']},
+    {t:'Construction',v:['I','A','C','R','C']},
+    {t:'Contrôle sécurité',v:['I','C','C','A','R']},
+    {t:'Réception finale',v:['A','R','C','C','C']},
+  ],
+  risks:[
+    {id:'r1',n:'Retard livraison matériaux',p:4,i:4,niv:'Élevé',type:'Planning',prev:'Double fournisseur',corr:'Réorganisation planning'},
+    {id:'r2',n:'Mauvaise météo',p:3,i:3,niv:'Moyen',type:'Externe',prev:'Marge dans le planning',corr:'Décaler les travaux ext.'},
+    {id:'r3',n:'Dépassement budget',p:3,i:5,niv:'Élevé',type:'Financier',prev:'Réserve budgétaire 10%',corr:'Arbitrage MOA'},
+    {id:'r4',n:'Accident de chantier',p:2,i:5,niv:'Élevé',type:'Sécurité',prev:'Plan de prévention sécurité',corr:'Arrêt chantier + enquête'},
+    {id:'r5',n:'Défaut de structure',p:2,i:5,niv:'Élevé',type:'Technique',prev:'Contrôles techniques hebdo',corr:'Reprise des travaux'},
+    {id:'r6',n:'Non-conformité réglementaire',p:2,i:4,niv:'Moyen',type:'Réglementaire',prev:'Audit qualité régulier',corr:'Corrections obligatoires'},
+    {id:'r7',n:'Défaillance prestataire',p:3,i:4,niv:'Élevé',type:'Organisationnel',prev:'Sélection stricte + contrat',corr:'Remplacement prestataire'},
+  ],
+  scales:[
+    {niv:'1',prob:'Très improbable',impact:'Faible — conséquences négligeables'},
+    {niv:'2',prob:'Peu probable',impact:'Modéré — gêne temporaire'},
+    {niv:'3',prob:'Possible',impact:'Important — retard ou surcoût significatif'},
+    {niv:'4',prob:'Probable',impact:'Grave — impact majeur sur le projet'},
+    {niv:'5',prob:'Très probable',impact:'Critique — remise en cause du projet'},
+  ],
+  typos:[
+    {id:'t1',type:'Technique',ex:'Défaut de structure, mauvaise nature du sol'},
+    {id:'t2',type:'Organisationnel',ex:'Manque de coordination, défaillance prestataire'},
+    {id:'t3',type:'Planning',ex:'Retard livraison matériaux, intempéries'},
+    {id:'t4',type:'Financier',ex:'Dépassement budget, inflation matériaux'},
+    {id:'t5',type:'Sécurité',ex:'Accident de chantier, non-conformité ERP'},
+    {id:'t6',type:'Externe',ex:'Météo défavorable, recours riverains, grève'},
+  ],
+  comms:[
+    {id:'c1',type:'Réunion de chantier',obj:'Coordination opérationnelle',freq:'Hebdomadaire',dest:'Entreprises + chef projet'},
+    {id:'c2',type:'Compte-rendu de chantier',obj:'Traçabilité des décisions',freq:'Hebdomadaire',dest:'Tous les acteurs'},
+    {id:'c3',type:'Comité projet',obj:'Suivi technique et qualité',freq:'Mensuel',dest:'Architecte + bureau études'},
+    {id:'c4',type:'Comité de pilotage',obj:'Décisions stratégiques',freq:'Trimestriel',dest:'Sponsor + MOA'},
+    {id:'c5',type:"Rapport d\'avancement",obj:'Synthèse globale du projet',freq:'Mensuel',dest:'MOA + direction'},
+    {id:'c6',type:'Alerte risque',obj:'Signalement criticité élevée',freq:'À la demande',dest:'Chef projet + MOA'},
+  ],
+  pp:[
+    {id:'p1',nom:"Maître d\'ouvrage (promoteur)",role:'Commanditaire / Sponsor',att:'Rentabilité, respect budget & délais'},
+    {id:'p2',nom:'Chef de chantier (nous)',role:'Pilotage opérationnel (MOE)',att:'Respect délais, qualité, coûts'},
+    {id:'p3',nom:'Architecte',role:'Conception technique & plans',att:'Validation plans, conformité DTU'},
+    {id:'p4',nom:'Entreprise BTP / Ouvriers',role:'Réalisation des travaux',att:'Clarté des missions, paiement'},
+    {id:'p5',nom:'Bureau de contrôle',role:'Vérification & conformité',att:'Respect normes ERP, sécurité'},
+    {id:'p6',nom:'Collectivités locales',role:'Autorisation & réglementation',att:'Conformité permis, urbanisme'},
+    {id:'p7',nom:'Futurs locataires / Clients',role:'Utilisateurs finaux',att:'Qualité espaces, accessibilité PMR'},
+  ],
+  lists:[
+    {id:'l1',title:'📋 À faire',color:'#8b949e'},
+    {id:'l2',title:'⚙️ En cours',color:'#f0a500'},
+    {id:'l3',title:'✅ Terminé',color:'#56d364'},
+  ],
+  cards:[
+    // ════ À FAIRE — LOT 6 Livraison ════
+    {id:'ca1', listId:'l1',done:false,title:'Vérifier la levée totale des réserves',member:'Said',label:'controle',desc:'Condition obligatoire avant réception finale — liste exhaustive visée'},
+    {id:'ca2', listId:'l1',done:false,title:'Constituer le Dossier des Ouvrages Exécutés (DOE)',member:'Antonin',label:'livraison',desc:'Plans conformes à exécution, notices, garanties constructeur, assurances'},
+    {id:'ca3', listId:'l1',done:false,title:'Vérifier conformité accessibilité PMR',member:'Lenny',label:'controle',desc:'Rampes, largeurs de passage, ascenseurs, signalétique — norme ERP'},
+    {id:'ca4', listId:'l1',done:false,title:'Vérifier les essais extincteurs et SSI',member:'Said',label:'securite',desc:'Commissionnement système sécurité incendie — obligatoire avant ouverture'},
+    {id:'ca5', listId:'l1',done:false,title:'Organiser la réception officielle avec la MOA',member:'Antonin',label:'livraison',desc:"Remise des clés au maître d\'ouvrage — signature du PV de réception finale"},
+    {id:'ca6', listId:'l1',done:false,title:'Préparer le comité de pilotage de clôture',member:'Antonin',label:'pilotage',desc:'Bilan budget, délais, qualité — présentation MOA et direction'},
+    {id:'ca7', listId:'l1',done:false,title:'⭐ JALON J6 — Ouverture commerciale du centre',member:'Antonin',label:'jalon',desc:"Livraison officielle et ouverture au public — fin du projet"},
+
+    // ════ EN COURS — LOT 5 Aménagement ════
+    {id:'ca8', listId:'l2',done:false,title:'Coordonner pose des vitrines et enseignes commerciales',member:'Said',label:'coordination',desc:'Prestataires en cours — délai contractuel semaine 23'},
+    {id:'ca9', listId:'l2',done:false,title:'Contrôler revêtements de sol et peintures finition',member:'Lenny',label:'controle',desc:'Carrelages, époxy parking, peintures — réception par zone'},
+    {id:'ca10',listId:'l2',done:false,title:'Superviser marquage parking et voirie extérieure',member:'Lenny',label:'controle',desc:'Signalétique horizontale et verticale, éclairage extérieur'},
+    {id:'ca11',listId:'l2',done:false,title:'Coordonner raccordements compteurs définitifs',member:'Said',label:'coordination',desc:'Électricité, eau, gaz — passage des compteurs définitifs avec concessionnaires'},
+    {id:'ca12',listId:'l2',done:false,title:'Assister à la visite finale du bureau de contrôle',member:'Antonin',label:'controle',desc:'Levée des points bloquants ERP — visite programmée semaine 24'},
+    {id:'ca13',listId:'l2',done:false,title:'Lever les 8 réserves techniques restantes',member:'Antonin',label:'controle',desc:'8 réserves sur 23 encore ouvertes — délai contractualisé avec prestataires'},
+    {id:'ca14',listId:'l2',done:false,title:'Rédiger le compte-rendu de chantier semaine 23',member:'Said',label:'pilotage',desc:'Diffusion sous 48h à tous les intervenants — archivage obligatoire'},
+    {id:'ca15',listId:'l2',done:false,title:'Effectuer la ronde de sécurité hebdomadaire',member:'Said',label:'securite',desc:'Vérification finale avant ouverture au public'},
+
+    // ════ TERMINÉ — LOT 1 : Préparation ════
+    {id:'ca16',listId:'l3',done:true,title:'Obtenir et vérifier le permis de construire',member:'Antonin',label:'preparation',desc:'PC validé par la mairie — toutes les conditions levées'},
+    {id:'ca17',listId:'l3',done:true,title:'Délimiter et clôturer le périmètre du chantier',member:'Antonin',label:'preparation',desc:'Clôture rigide installée — accès sécurisé et balisé'},
+    {id:'ca18',listId:'l3',done:true,title:'Installer la base vie (bungalows, sanitaires)',member:'Said',label:'preparation',desc:'Bureau de chantier, vestiaires, salle de réunion opérationnels dès J+3'},
+    {id:'ca19',listId:'l3',done:true,title:'Mettre en place la signalétique de chantier',member:'Said',label:'preparation',desc:'Panneaux réglementaires, sens de circulation, accès livraisons'},
+    {id:'ca20',listId:'l3',done:true,title:'Raccordements provisoires eau et électricité',member:'Lenny',label:'preparation',desc:'Branchements temporaires actifs dès J+5'},
+    {id:'ca21',listId:'l3',done:true,title:'Définir et baliser les zones de stockage matériaux',member:'Lenny',label:'preparation',desc:'Plan de zonage approuvé — respect des voies de circulation'},
+    {id:'ca22',listId:'l3',done:true,title:'Organiser la réunion de démarrage (kick-off)',member:'Antonin',label:'preparation',desc:'Tous les prestataires présents — planning et règles définis'},
+    {id:'ca23',listId:'l3',done:true,title:'⭐ JALON J1 — Permis de construire obtenu',member:'Antonin',label:'jalon',desc:'Chantier autorisé — démarrage officiel'},
+
+    // ════ TERMINÉ — LOT 2 : Conception & Mobilisation ════
+    {id:'ca24',listId:'l3',done:true,title:'Vérifier assurances et qualifications de tous les prestataires',member:'Antonin',label:'coordination',desc:'Décennale, RC Pro, Qualibat — dossiers complets archivés'},
+    {id:'ca25',listId:'l3',done:true,title:'Valider les plans architecturaux avec l\'architecte',member:'Antonin',label:'coordination',desc:'Plans visés par le bureau de contrôle — aucune réserve restante'},
+    {id:'ca26',listId:'l3',done:true,title:'Coordonner la mobilisation des engins et de la grue',member:'Lenny',label:'coordination',desc:'Plan de grue validé, CACES vérifiés, zones de rotation définies'},
+    {id:'ca27',listId:'l3',done:true,title:'Organiser la formation sécurité accueil chantier',member:'Antonin',label:'securite',desc:'100% des intervenants formés — registre de signatures archivé'},
+    {id:'ca28',listId:'l3',done:true,title:'Afficher le Plan Général de Coordination (PGC)',member:'Antonin',label:'securite',desc:'Affiché en base vie et à l\'entrée du chantier'},
+    {id:'ca29',listId:'l3',done:true,title:'⭐ JALON J2 — Ouverture officielle du chantier',member:'Antonin',label:'jalon',desc:'Premier coup de pelle — tous les prestataires mobilisés'},
+
+    // ════ TERMINÉ — LOT 3 : Gros œuvre ════
+    {id:'ca30',listId:'l3',done:true,title:'Surveiller et valider le terrassement général',member:'Lenny',label:'controle',desc:'Cotes NGF vérifiées — PV de réception du terrassier signé'},
+    {id:'ca31',listId:'l3',done:true,title:'Contrôler la mise en œuvre des fondations',member:'Lenny',label:'controle',desc:'Profondeur, ferraillage, béton C25/30 — bureau de contrôle présent'},
+    {id:'ca32',listId:'l3',done:true,title:'Coordonner les 28 rotations de béton prêt à emploi',member:'Lenny',label:'coordination',desc:'Zéro incident, zéro non-conformité — BPE conforme CCTP'},
+    {id:'ca33',listId:'l3',done:true,title:'Contrôler montage de la structure béton armé',member:'Lenny',label:'controle',desc:'Poteaux, poutres, dalles — conformes aux plans d\'exécution'},
+    {id:'ca34',listId:'l3',done:true,title:'Valider charpente métallique et couverture toiture',member:'Said',label:'controle',desc:'Étanchéité testée et validée — hors eau atteint'},
+    {id:'ca35',listId:'l3',done:true,title:'Contrôler échafaudages et protections collectives',member:'Lenny',label:'securite',desc:'Vérifications hebdomadaires tout au long du gros œuvre — zéro accident'},
+    {id:'ca36',listId:'l3',done:true,title:'⭐ JALON J3 — Hors d\'eau / Hors d\'air atteint',member:'Lenny',label:'jalon',desc:'Structure fermée et étanche — second œuvre autorisé à démarrer'},
+
+    // ════ TERMINÉ — LOT 4 : Second œuvre ════
+    {id:'ca37',listId:'l3',done:true,title:'Planifier et coordonner interventions élec, plomb, CVC',member:'Said',label:'coordination',desc:'Planning sans conflits entre corps de métier — toutes interventions enchaînées'},
+    {id:'ca38',listId:'l3',done:true,title:'Contrôler pose des réseaux électriques',member:'Said',label:'controle',desc:'Tableaux, câblage, prises, éclairage — essais de continuité réalisés'},
+    {id:'ca39',listId:'l3',done:true,title:'Contrôler pose plomberie sanitaire et sprinklers',member:'Said',label:'controle',desc:'Sanitaires, réseaux EU/EV, sprinklers — essais de pression OK'},
+    {id:'ca40',listId:'l3',done:true,title:'Contrôler installation CVC et ventilation',member:'Said',label:'controle',desc:'Climatisation, VMC, désenfumage — essais de débit et pression effectués'},
+    {id:'ca41',listId:'l3',done:true,title:'Contrôler pose cloisons, doublages et faux-plafonds',member:'Lenny',label:'controle',desc:'Placo, isolation, faux-plafonds techniques — conformes aux plans'},
+    {id:'ca42',listId:'l3',done:true,title:'Vérifier habilitations CACES et habilitations électriques',member:'Lenny',label:'securite',desc:'Tous les certificats archivés en base vie — aucune intervention non habilitée'},
+    {id:'ca43',listId:'l3',done:true,title:'⭐ JALON J4 — Réception provisoire second œuvre',member:'Antonin',label:'jalon',desc:'PV de réception provisoire signé — LOT 5 aménagement peut démarrer'},
+
+    // ════ TERMINÉ — Pilotage continu 24 mois ════
+    {id:'ca44',listId:'l3',done:true,title:'Animer les réunions de chantier hebdomadaires (×96)',member:'Antonin',label:'pilotage',desc:'Comptes-rendus diffusés sous 48h à tous les intervenants — tous archivés'},
+    {id:'ca45',listId:'l3',done:true,title:'Rédiger les 24 rapports mensuels d\'avancement',member:'Said',label:'pilotage',desc:'Synthèses transmises à la MOA — aucun écart non signalé'},
+    {id:'ca46',listId:'l3',done:true,title:'Tenir le registre journal de chantier (24 mois)',member:'Said',label:'securite',desc:'Incidents, météo, visites — registre complet et archivé'},
+    {id:'ca47',listId:'l3',done:true,title:'Mettre à jour le registre des risques en continu',member:'Lenny',label:'pilotage',desc:'Aucun risque criticité ≥12 déclenché — tous les risques maîtrisés'},
+    {id:'ca48',listId:'l3',done:true,title:'⭐ JALON J5 — Levée des réserves LOT 1 à 4',member:'Antonin',label:'jalon',desc:'23 réserves levées sur 23 — hors LOT 5 aménagement en cours'},
+  ]
+};
+
+function load(){try{const s=localStorage.getItem(SK);if(s)return JSON.parse(s);}catch(e){}return JSON.parse(JSON.stringify(D));}
+function save(){try{localStorage.setItem(SK,JSON.stringify(st));}catch(e){}}
+function gid(){return 'i'+Date.now()+'_'+Math.random().toString(36).slice(2,6);}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+let st=load(), filters=['Antonin','Lenny','Said'], editCardId=null, editListId=null, dragId=null, charts={};
+let editGanttId=null, editWbsId=null, editRiskId=null, editTypoId=null, editCommId=null, editPpId=null, editKpiId=null;
+
+// ── NAV ──
+function showPg(p,el){
+  document.querySelectorAll('[id^="pg"]').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.getElementById('pg'+p).classList.add('on');
+  el.classList.add('on');
+  const m={Kpi:renderKpi,Diag:renderDiag,Risk:renderRisk,Comm:renderComm};
+  if(m[p])m[p]();
+}
+
+// ── FILTER ──
+function toggleF(m){
+  if(filters.includes(m)){if(filters.length===1)return;filters=filters.filter(x=>x!==m);}
+  else filters.push(m);
+  document.querySelectorAll('.mb').forEach(b=>b.classList.toggle('off',!filters.includes(b.dataset.m)));
+  renderBoard();
+}
+
+// ══════════════════════════════════════════
+// BOARD
+// ══════════════════════════════════════════
+function renderBoard(){
+  const w=document.getElementById('boardWrap'); w.innerHTML='';
+  st.lists.forEach(list=>{
+    const isDone=list.title.includes('✅')||list.title.toLowerCase().includes('terminé');
+    const isInProgress=list.title.includes('⚙️')||list.title.toLowerCase().includes('en cours');
+    const statusCls=isDone?'lst-done':isInProgress?'lst-inprogress':'lst-todo';
+    const cards=st.cards.filter(c=>c.listId===list.id&&(!c.member||filters.includes(c.member)));
+    const doneCount=cards.filter(c=>c.done).length;
+    const el=document.createElement('div'); el.className=`lst ${statusCls}`;
+    el.innerHTML=`
+      <div class="lst-h">
+        <div class="lst-dot" style="background:${list.color}"></div>
+        <input class="lst-ti" value="${esc(list.title)}"
+          onblur="renameList('${list.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"/>
+        <span class="lst-cnt">${isDone?doneCount:cards.length-doneCount+'/'+cards.length}</span>
+        <div style="position:relative">
+          <button class="lmb" onclick="toggleDd(event,'dd_${list.id}')">⋯</button>
+          <div class="ddm" id="dd_${list.id}" style="display:none">
+            <button class="ddi" onclick="openAddCard('${list.id}')">➕ Ajouter</button>
+            <button class="ddi danger" onclick="delList('${list.id}')">🗑️ Supprimer</button>
+          </div>
+        </div>
+      </div>
+      <div class="lst-cards" id="lc_${list.id}"
+        ondragover="onDOver(event)" ondrop="onDrop(event,'${list.id}')">
+        ${cards.length===0?'<div class="empty-s">Aucune carte</div>':cards.map(c=>renderCard(c,isDone)).join('')}
+      </div>
+      <div class="lst-foot"><button class="btn-ac" onclick="openAddCard('${list.id}')">＋ Ajouter une carte</button></div>`;
+    w.appendChild(el);
+  });
+  const btn=document.createElement('button'); btn.className='btn-nl'; btn.textContent='＋ Nouvelle liste'; btn.onclick=openAddList; w.appendChild(btn);
+}
+function renderCard(c, forceStyle){
+  const mc=c.member?`cm-${c.member.toLowerCase()}`:''; const lc=c.label?`cl-${c.label}`:'';
+  const isDone=c.done===true;
+  const cardCls=`card${c.label==='jalon'?' card-jalon':''}${isDone?' card-done':''}`;
+  return`<div class="${cardCls}" id="card_${c.id}" draggable="true" ondragstart="onDS(event,'${c.id}')" ondragend="onDE()">
+    <div class="card-top">
+      <button class="cbtn-done ${isDone?'is-done':''}" onclick="toggleDone('${c.id}')" title="${isDone?'Rouvrir':'Marquer comme terminé'}">${isDone?'✅':'⬜'}</button>
+      <div class="card-title ${isDone?'done-title':''}">${esc(c.title)}${c.desc&&!isDone?`<div class="card-desc">${esc(c.desc)}</div>`:''}</div>
+      <div class="card-act">
+        <button class="cbtn" onclick="openEditCard('${c.id}')">✏️</button>
+        <button class="cbtn del" onclick="delCard('${c.id}')">✕</button>
+      </div>
+    </div>
+    ${!isDone?`<div class="card-meta">
+      ${c.label?`<span class="cl ${lc}">${c.label}</span>`:''}
+      ${c.member?`<span class="cm ${mc}">${c.member}</span>`:''}
+    </div>`:''}
+  </div>`;
+}
+function toggleDone(id){
+  const c=st.cards.find(x=>x.id===id); if(!c)return;
+  c.done=!c.done;
+  // Move to Terminé list if done, else move back to En cours
+  if(c.done){
+    const doneList=st.lists.find(l=>l.title.includes('✅')||l.title.toLowerCase().includes('terminé'));
+    if(doneList) c.listId=doneList.id;
+  } else {
+    const inProgressList=st.lists.find(l=>l.title.includes('⚙️')||l.title.toLowerCase().includes('en cours'));
+    if(inProgressList) c.listId=inProgressList.id;
+  }
+  save(); renderBoard();
+  toast(c.done?'✅ Tâche terminée !':'↩️ Tâche réouverte');
+}
+function onDS(e,id){dragId=id;setTimeout(()=>{const el=document.getElementById('card_'+id);if(el)el.classList.add('dragging');},0);}
+function onDE(){document.querySelectorAll('.card').forEach(c=>c.classList.remove('dragging'));dragId=null;}
+function onDOver(e){e.preventDefault();}
+function onDrop(e,listId){e.preventDefault();if(!dragId)return;const c=st.cards.find(x=>x.id===dragId);if(c){c.listId=listId;save();renderBoard();toast('Déplacée ✓');}dragId=null;}
+function openAddList(){document.getElementById('lName').value='';document.getElementById('moList').style.display='flex';setTimeout(()=>document.getElementById('lName').focus(),80);}
+function saveList(){const n=document.getElementById('lName').value.trim();if(!n)return;const cs=['#f0a500','#58a6ff','#56d364','#bc8cff','#f85149','#e3b341'];st.lists.push({id:gid(),title:n,color:cs[st.lists.length%cs.length]});save();renderBoard();closeMo('moList');toast('Liste créée ✓');}
+function delList(id){if(!confirm('Supprimer cette liste et ses cartes ?'))return;st.lists=st.lists.filter(l=>l.id!==id);st.cards=st.cards.filter(c=>c.listId!==id);save();renderBoard();toast('Supprimée');closeAllDd();}
+function renameList(id,v){const l=st.lists.find(x=>x.id===id);if(l&&v.trim()){l.title=v.trim();save();renderBoard();}}
+function openAddCard(listId){editCardId=null;editListId=listId;document.getElementById('moCardTi').textContent='➕ Nouvelle carte';['cTitle','cDesc'].forEach(i=>document.getElementById(i).value='');['cMember','cLabel'].forEach(i=>document.getElementById(i).value='');document.getElementById('moCard').style.display='flex';closeAllDd();setTimeout(()=>document.getElementById('cTitle').focus(),80);}
+function openEditCard(id){const c=st.cards.find(x=>x.id===id);if(!c)return;editCardId=id;editListId=null;document.getElementById('moCardTi').textContent='✏️ Modifier';document.getElementById('cTitle').value=c.title;document.getElementById('cDesc').value=c.desc||'';document.getElementById('cMember').value=c.member||'';document.getElementById('cLabel').value=c.label||'';document.getElementById('moCard').style.display='flex';setTimeout(()=>document.getElementById('cTitle').focus(),80);}
+function saveCard(){const t=document.getElementById('cTitle').value.trim();if(!t)return;const m=document.getElementById('cMember').value,l=document.getElementById('cLabel').value,d=document.getElementById('cDesc').value.trim();if(editCardId){const c=st.cards.find(x=>x.id===editCardId);if(c){c.title=t;c.member=m;c.label=l;c.desc=d;}toast('Mise à jour ✓');}else{st.cards.push({id:gid(),listId:editListId,title:t,member:m,label:l,desc:d});toast('Ajoutée ✓');}save();renderBoard();closeMo('moCard');}
+function delCard(id){if(!confirm('Supprimer ?'))return;st.cards=st.cards.filter(c=>c.id!==id);save();renderBoard();toast('Supprimée');}
+
+// ══════════════════════════════════════════
+// KPI
+// ══════════════════════════════════════════
+function kpiStatus(k){
+  const v=k.val;
+  if(k.id==='k1'){if(v>=95)return['a-ok','✓ En bonne voie'];if(v>=70)return['a-warn','⚡ Surveiller'];return['a-bad','⚠️ Retard'];}
+  if(k.id==='k2'){if(v===0)return['a-ok','✓ Dans les délais'];if(v<5)return['a-warn','⚡ Surveiller'];return['a-bad','⚠️ Retard > 5j'];}
+  if(k.id==='k3'){if(v<80)return['a-ok','✓ Sous contrôle'];if(v<90)return['a-warn','⚡ Surveiller'];return['a-bad','⚠️ > 90%'];}
+  if(k.id==='k4'){if(v===0)return['a-ok','✓ Aucun incident'];return['a-bad','⚠️ Incident !'];}
+  if(k.id==='k5'){if(v<=2)return['a-ok','✓ Normal'];if(v===3)return['a-warn','⚡ Seuil'];return['a-bad','⚠️ > 3'];}
+  return['a-ok','✓'];
+}
+function renderKpi(){
+  const g=document.getElementById('kpiGrid');g.innerHTML='';
+  const clsList=['kav','kpl','kbu','kse','knc'];const colList=['var(--blue)','var(--acc)','var(--green)','var(--red)','var(--pur)'];
+  st.kpi.forEach((k,idx)=>{
+    const cls=k.cls||clsList[idx%clsList.length]; const col=k.color||colList[idx%colList.length];
+    const pct=k.unit==='%'?Math.min(k.val,100):Math.min(k.val*10,100);
+    const[ac,at]=kpiStatus(k);
+    g.innerHTML+=`<div class="kpi-card ${cls}" onclick="openEditKpi('${k.id}')">
+      <div class="kpi-lbl">${k.lbl}</div>
+      <div class="kpi-val" style="color:${col}">${k.val}<small style="font-size:13px;font-weight:400;color:var(--mu)"> ${k.unit}</small></div>
+      <div class="kpi-sub">${k.freq} — ${k.alerte}</div>
+      <div class="kpi-bar-w"><div class="kpi-bar" style="width:${pct}%;background:${col}"></div></div>
+      <span class="kpi-al ${ac}">${at}</span>
+    </div>`;
+  });
+  renderKpiCharts();
+}
+function openAddKpi(){
+  editKpiId=null;document.getElementById('moKpiTi').textContent='➕ Nouveau KPI';
+  ['kpiLbl','kpiVal','kpiUnit','kpiObj','kpiFreq','kpiAlert'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('kpiDelBtn').style.display='none';document.getElementById('kpiId').value='';
+  document.getElementById('moKpi').style.display='flex';setTimeout(()=>document.getElementById('kpiLbl').focus(),80);
+}
+function openEditKpi(id){
+  const k=st.kpi.find(x=>x.id===id);if(!k)return;
+  editKpiId=id;document.getElementById('moKpiTi').textContent='✏️ Modifier KPI';
+  document.getElementById('kpiId').value=id;document.getElementById('kpiLbl').value=k.lbl;document.getElementById('kpiVal').value=k.val;
+  document.getElementById('kpiUnit').value=k.unit||'';document.getElementById('kpiObj').value=k.obj||'';
+  document.getElementById('kpiFreq').value=k.freq||'';document.getElementById('kpiAlert').value=k.alerte||'';
+  document.getElementById('kpiDelBtn').style.display='inline-block';
+  document.getElementById('moKpi').style.display='flex';
+}
+function saveKpi(){
+  const lbl=document.getElementById('kpiLbl').value.trim();if(!lbl)return;
+  const obj={lbl,val:parseFloat(document.getElementById('kpiVal').value)||0,unit:document.getElementById('kpiUnit').value,obj:document.getElementById('kpiObj').value,freq:document.getElementById('kpiFreq').value,alerte:document.getElementById('kpiAlert').value};
+  if(editKpiId){const k=st.kpi.find(x=>x.id===editKpiId);if(k)Object.assign(k,obj);}
+  else st.kpi.push({id:gid(),...obj,cls:'kav',color:'var(--blue)'});
+  save();renderKpi();closeMo('moKpi');toast('KPI mis à jour ✓');
+}
+function delKpi(){if(!confirm('Supprimer ce KPI ?'))return;st.kpi=st.kpi.filter(k=>k.id!==editKpiId);save();renderKpi();closeMo('moKpi');toast('KPI supprimé');}
+function renderKpiCharts(){
+  if(charts.av)charts.av.destroy();
+  charts.av=new Chart(document.getElementById('cAv'),{type:'bar',data:{labels:st.gantt.map(g=>g.name.split('—')[0].trim()),datasets:[{data:st.gantt.map((_,i)=>[100,100,100,85,60,20][i]??50),backgroundColor:st.gantt.map(g=>g.color),borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{max:100,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8b949e',callback:v=>v+'%'}},x:{grid:{display:false},ticks:{color:'#8b949e',font:{size:9}}}}}});
+  const bv=st.kpi.find(k=>k.id==='k3')?.val??68;
+  if(charts.bu)charts.bu.destroy();
+  charts.bu=new Chart(document.getElementById('cBu'),{type:'doughnut',data:{labels:['Consommé','Disponible'],datasets:[{data:[bv,100-bv],backgroundColor:['#56d364','#21262d'],borderWidth:0,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{labels:{color:'#8b949e',font:{size:10}}}}}});
+  const hist=st.kpiHist?.k2||[0,1,2,4,5,3];
+  if(charts.ec)charts.ec.destroy();
+  charts.ec=new Chart(document.getElementById('cEc'),{type:'line',data:{labels:hist.map((_,i)=>'S'+(i+1)),datasets:[{label:'Écart (j)',data:hist,borderColor:'#f0a500',backgroundColor:'rgba(240,165,0,.07)',fill:true,tension:.4,pointBackgroundColor:'#f0a500',pointRadius:3},{label:'Seuil 5j',data:hist.map(()=>5),borderColor:'#f85149',borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8b949e',font:{size:10}}}},scales:{y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8b949e'}},x:{grid:{display:false},ticks:{color:'#8b949e'}}}}});
+}
+
+// ══════════════════════════════════════════
+// DIAGRAMMES
+// ══════════════════════════════════════════
+function renderDiag(){renderGantt();renderWbs();renderRaci();}
+function renderGantt(){
+  const total=Math.max(...st.gantt.map(g=>g.start+g.dur),24);
+  let h=`<thead><tr><th>Phase/Lot</th><th style="text-align:center;width:70px">Durée</th><th>Planning (${total} mois)</th><th>Jalon clé</th><th style="width:60px"></th></tr></thead><tbody>`;
+  st.gantt.forEach(g=>{
+    const l=(g.start/total*100).toFixed(1),w=(g.dur/total*100).toFixed(1);
+    h+=`<tr><td style="font-weight:500;color:var(--txb)">${esc(g.name)}</td>
+      <td style="text-align:center;color:var(--mu)">${g.dur} mois</td>
+      <td><div class="gbar-wrap"><div class="gbar" style="left:${l}%;width:${w}%;background:${g.color}">${g.dur}m</div></div></td>
+      <td style="font-size:10px;color:var(--pur)">⭐ ${esc(g.jalon)}</td>
+      <td><button class="btn-edit" onclick="openEditGantt('${g.id}')">✏️</button></td></tr>`;
+  });
+  document.getElementById('ganttTbl').innerHTML=h+'</tbody>';
+}
+function openAddGantt(){
+  editGanttId=null;document.getElementById('moGanttTi').textContent='➕ Nouveau lot';
+  ['ganttName','ganttJalon'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('ganttDur').value=1;document.getElementById('ganttStart').value=0;document.getElementById('ganttColor').value='#58a6ff';
+  document.getElementById('ganttDelBtn').style.display='none';document.getElementById('ganttId').value='';
+  document.getElementById('moGantt').style.display='flex';
+}
+function openEditGantt(id){
+  const g=st.gantt.find(x=>x.id===id);if(!g)return;editGanttId=id;
+  document.getElementById('moGanttTi').textContent='✏️ Modifier lot';document.getElementById('ganttId').value=id;
+  document.getElementById('ganttName').value=g.name;document.getElementById('ganttDur').value=g.dur;document.getElementById('ganttStart').value=g.start;
+  document.getElementById('ganttColor').value=g.color;document.getElementById('ganttJalon').value=g.jalon||'';
+  document.getElementById('ganttDelBtn').style.display='inline-block';document.getElementById('moGantt').style.display='flex';
+}
+function saveGantt(){
+  const name=document.getElementById('ganttName').value.trim();if(!name)return;
+  const obj={name,dur:parseInt(document.getElementById('ganttDur').value)||1,start:parseInt(document.getElementById('ganttStart').value)||0,color:document.getElementById('ganttColor').value,jalon:document.getElementById('ganttJalon').value};
+  if(editGanttId){const g=st.gantt.find(x=>x.id===editGanttId);if(g)Object.assign(g,obj);}
+  else st.gantt.push({id:gid(),...obj});
+  save();renderGantt();closeMo('moGantt');toast('Gantt mis à jour ✓');
+}
+function delGantt(){if(!confirm('Supprimer ce lot ?'))return;st.gantt=st.gantt.filter(g=>g.id!==editGanttId);save();renderGantt();closeMo('moGantt');toast('Supprimé');}
+
+function renderWbs(){
+  let h=`<div class="wbs-c"><div class="wbs-root">CONSTRUCTION CENTRE COMMERCIAL</div><div class="wbs-vl"></div><div class="wbs-row">`;
+  st.wbs.forEach(w=>{
+    h+=`<div class="wbs-lot"><div class="wbs-lot-box" style="border-color:${w.color};color:${w.color};background:${w.color}15"><div>${esc(w.nom)}</div><div style="font-size:9px;opacity:.8">${esc(w.lib)}</div></div>
+    <div class="wbs-subs">${(w.subs||[]).map(s=>`<div class="wbs-sub">${esc(s)}</div>`).join('')}</div></div>`;
+  });
+  h+='</div></div>';
+  document.getElementById('wbsCont').innerHTML=h;
+  let th=`<thead><tr><th>Lot</th><th>Libellé</th><th>Sous-tâches principales</th><th style="width:60px"></th></tr></thead><tbody>`;
+  st.wbs.forEach(w=>{th+=`<tr><td style="font-weight:700;color:var(--acc)">${esc(w.nom)}</td><td style="color:var(--txb);font-weight:500">${esc(w.lib)}</td><td style="color:var(--mu)">${esc(w.subsTable||'')}</td><td><button class="btn-edit" onclick="openEditWbs('${w.id}')">✏️</button></td></tr>`;});
+  document.getElementById('wbsDetailTbl').innerHTML=th+'</tbody>';
+}
+function openAddWbs(){
+  editWbsId=null;document.getElementById('moWbsTi').textContent='➕ Nouveau lot WBS';
+  ['wbsNom','wbsLib','wbsSubs','wbsSubsTable'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('wbsColor').value='#58a6ff';document.getElementById('wbsDelBtn').style.display='none';document.getElementById('wbsId').value='';
+  document.getElementById('moWbs').style.display='flex';
+}
+function openEditWbs(id){
+  const w=st.wbs.find(x=>x.id===id);if(!w)return;editWbsId=id;
+  document.getElementById('moWbsTi').textContent='✏️ Modifier lot WBS';document.getElementById('wbsId').value=id;
+  document.getElementById('wbsNom').value=w.nom;document.getElementById('wbsLib').value=w.lib;document.getElementById('wbsColor').value=w.color;
+  document.getElementById('wbsSubs').value=(w.subs||[]).join('\n');document.getElementById('wbsSubsTable').value=w.subsTable||'';
+  document.getElementById('wbsDelBtn').style.display='inline-block';document.getElementById('moWbs').style.display='flex';
+}
+function saveWbs(){
+  const nom=document.getElementById('wbsNom').value.trim();if(!nom)return;
+  const obj={nom,lib:document.getElementById('wbsLib').value,color:document.getElementById('wbsColor').value,subs:document.getElementById('wbsSubs').value.split('\n').map(s=>s.trim()).filter(Boolean),subsTable:document.getElementById('wbsSubsTable').value};
+  if(editWbsId){const w=st.wbs.find(x=>x.id===editWbsId);if(w)Object.assign(w,obj);}
+  else st.wbs.push({id:gid(),...obj});
+  save();renderWbs();closeMo('moWbs');toast('WBS mis à jour ✓');
+}
+function delWbs(){if(!confirm('Supprimer ce lot WBS ?'))return;st.wbs=st.wbs.filter(w=>w.id!==editWbsId);save();renderWbs();closeMo('moWbs');toast('Supprimé');}
+
+function renderRaci(){
+  const vals=['R','A','C','I',''];
+  let h=`<thead><tr><th>Activité</th>${st.raciCols.map(c=>`<th>${esc(c)}<br><button class="btn-del-row" onclick="delRaciCol(${st.raciCols.indexOf(c)})" title="Supprimer colonne">✕</button></th>`).join('')}<th></th></tr></thead><tbody>`;
+  st.raciRows.forEach((row,ri)=>{
+    while(row.v.length<st.raciCols.length)row.v.push('I');
+    const cells=st.raciCols.map((_,ci)=>{
+      const v=row.v[ci]||'';
+      const cls=v==='R'?'rR':v==='A'?'rA':v==='C'?'rC':'rI';
+      return`<td onclick="cycleRaci(${ri},${ci})"><span class="${cls}" style="cursor:pointer">${v||'—'}</span></td>`;
+    }).join('');
+    h+=`<tr><td style="font-weight:500;color:var(--txb)">${esc(row.t)}</td>${cells}<td><button class="btn-del-row" onclick="delRaciRow(${ri})">✕</button></td></tr>`;
+  });
+  document.getElementById('raciTbl').innerHTML=h+'</tbody>';
+}
+function cycleRaci(ri,ci){
+  const cycle=['R','A','C','I',''];
+  const cur=st.raciRows[ri].v[ci]||'';
+  const idx=cycle.indexOf(cur);st.raciRows[ri].v[ci]=cycle[(idx+1)%cycle.length];
+  save();renderRaci();
+}
+function openAddRaciRow(){document.getElementById('raciRowName').value='';document.getElementById('moRaciRow').style.display='flex';setTimeout(()=>document.getElementById('raciRowName').focus(),80);}
+function saveRaciRow(){const n=document.getElementById('raciRowName').value.trim();if(!n)return;st.raciRows.push({t:n,v:st.raciCols.map(()=>'I')});save();renderRaci();closeMo('moRaciRow');toast('Activité ajoutée ✓');}
+function delRaciRow(i){if(!confirm('Supprimer ?'))return;st.raciRows.splice(i,1);save();renderRaci();toast('Supprimée');}
+function openAddRaciCol(){document.getElementById('raciColName').value='';document.getElementById('moRaciCol').style.display='flex';setTimeout(()=>document.getElementById('raciColName').focus(),80);}
+function saveRaciCol(){const n=document.getElementById('raciColName').value.trim();if(!n)return;st.raciCols.push(n);st.raciRows.forEach(r=>r.v.push('I'));save();renderRaci();closeMo('moRaciCol');toast('Acteur ajouté ✓');}
+function delRaciCol(i){if(!confirm('Supprimer cette colonne ?'))return;st.raciCols.splice(i,1);st.raciRows.forEach(r=>r.v.splice(i,1));save();renderRaci();toast('Supprimée');}
+
+// ══════════════════════════════════════════
+// RISQUES
+// ══════════════════════════════════════════
+function renderRisk(){
+  // Matrix
+  const rmap={};
+  st.risks.forEach(r=>{const k=`${r.p}-${r.i}`;if(!rmap[k])rmap[k]=[];rmap[k].push(r.n.split(' ').slice(0,2).join(' '));});
+  let mh='<div class="risk-mat">';
+  for(let p=5;p>=1;p--){for(let im=1;im<=5;im++){const c=p*im;const ns=rmap[`${p}-${im}`]||[];const cl=c>=12?'rc-hi':c>=6?'rc-me':'rc-lo';mh+=`<div class="rmc ${cl}" title="P${p}×I${im}=${c}"><div style="font-size:8px;opacity:.6">P${p}×I${im}</div><div style="font-size:12px;font-weight:800">${c}</div>${ns.map(n=>`<div style="font-size:8px">${n}</div>`).join('')}</div>`;}}
+  document.getElementById('riskMat').innerHTML=mh+'</div>';
+  // Table
+  let h=`<thead><tr><th>Risque</th><th style="text-align:center">P</th><th style="text-align:center">I</th><th style="text-align:center">P×I</th><th>Niveau</th><th>Type</th><th>Prévention</th><th>Correction</th><th style="width:50px"></th></tr></thead><tbody>`;
+  [...st.risks].sort((a,b)=>b.p*b.i-a.p*a.i).forEach(r=>{
+    const c=r.p*r.i;const cl=c>=12?'crit-hi':c>=6?'crit-me':'crit-lo';
+    h+=`<tr><td style="color:var(--txb);font-weight:500">${esc(r.n)}</td><td style="text-align:center">${r.p}</td><td style="text-align:center">${r.i}</td><td style="text-align:center"><span class="${cl}">${c}</span></td><td><span class="${cl}">${r.niv}</span></td><td style="color:var(--mu);font-size:10px">${esc(r.type)}</td><td style="font-size:10px">${esc(r.prev)}</td><td style="font-size:10px">${esc(r.corr)}</td><td><button class="btn-edit" onclick="openEditRisk('${r.id}')">✏️</button></td></tr>`;
+  });
+  document.getElementById('riskTbl').innerHTML=h+'</tbody>';
+  // Scales
+  let sh=`<thead><tr><th>Niveau</th><th>Probabilité</th><th>Impact</th></tr></thead><tbody>`;
+  st.scales.forEach(s=>{sh+=`<tr><td style="font-weight:700;color:var(--acc);text-align:center">${s.niv}</td><td>${s.prob}</td><td>${s.impact}</td></tr>`;});
+  document.getElementById('scaleTbl').innerHTML=sh+'</tbody>';
+  // Typos
+  let th=`<thead><tr><th>Type</th><th>Exemple concret</th><th style="width:50px"></th></tr></thead><tbody>`;
+  st.typos.forEach(t=>{th+=`<tr><td style="font-weight:600;color:var(--txb)">${esc(t.type)}</td><td style="color:var(--mu)">${esc(t.ex)}</td><td><button class="btn-edit" onclick="openEditTypo('${t.id}')">✏️</button></td></tr>`;});
+  document.getElementById('typoTbl').innerHTML=th+'</tbody>';
+  // Chart
+  const hi=st.risks.filter(r=>r.p*r.i>=12).length,me=st.risks.filter(r=>r.p*r.i>=6&&r.p*r.i<12).length,lo=st.risks.filter(r=>r.p*r.i<6).length;
+  if(charts.risk)charts.risk.destroy();
+  charts.risk=new Chart(document.getElementById('cRisk'),{type:'doughnut',data:{labels:['Élevé ≥12','Moyen 6–11','Faible <6'],datasets:[{data:[hi,me,lo],backgroundColor:['#f85149','#f0a500','#56d364'],borderWidth:0,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{labels:{color:'#8b949e',font:{size:10}}}}}});
+}
+function openAddRisk(){
+  editRiskId=null;document.getElementById('moRiskTi').textContent='➕ Nouveau risque';
+  ['riskName','riskNiv','riskType','riskPrev','riskCorr'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('riskP').value=1;document.getElementById('riskI').value=1;
+  document.getElementById('riskDelBtn').style.display='none';document.getElementById('riskId').value='';
+  document.getElementById('moRisk').style.display='flex';setTimeout(()=>document.getElementById('riskName').focus(),80);
+}
+function openEditRisk(id){
+  const r=st.risks.find(x=>x.id===id);if(!r)return;editRiskId=id;
+  document.getElementById('moRiskTi').textContent='✏️ Modifier risque';document.getElementById('riskId').value=id;
+  document.getElementById('riskName').value=r.n;document.getElementById('riskP').value=r.p;document.getElementById('riskI').value=r.i;
+  document.getElementById('riskNiv').value=r.niv;document.getElementById('riskType').value=r.type;document.getElementById('riskPrev').value=r.prev;document.getElementById('riskCorr').value=r.corr;
+  document.getElementById('riskDelBtn').style.display='inline-block';document.getElementById('moRisk').style.display='flex';
+}
+function saveRisk(){
+  const n=document.getElementById('riskName').value.trim();if(!n)return;
+  const obj={n,p:parseInt(document.getElementById('riskP').value)||1,i:parseInt(document.getElementById('riskI').value)||1,niv:document.getElementById('riskNiv').value,type:document.getElementById('riskType').value,prev:document.getElementById('riskPrev').value,corr:document.getElementById('riskCorr').value};
+  if(editRiskId){const r=st.risks.find(x=>x.id===editRiskId);if(r)Object.assign(r,obj);}
+  else st.risks.push({id:gid(),...obj});
+  save();renderRisk();closeMo('moRisk');toast('Risque mis à jour ✓');
+}
+function delRisk(){if(!confirm('Supprimer ?'))return;st.risks=st.risks.filter(r=>r.id!==editRiskId);save();renderRisk();closeMo('moRisk');toast('Supprimé');}
+function openAddTypo(){editTypoId=null;document.getElementById('moTypoTi').textContent='➕ Nouvelle typologie';['typoType','typoEx'].forEach(i=>document.getElementById(i).value='');document.getElementById('typoDelBtn').style.display='none';document.getElementById('typoId').value='';document.getElementById('moTypo').style.display='flex';}
+function openEditTypo(id){const t=st.typos.find(x=>x.id===id);if(!t)return;editTypoId=id;document.getElementById('moTypoTi').textContent='✏️ Modifier';document.getElementById('typoId').value=id;document.getElementById('typoType').value=t.type;document.getElementById('typoEx').value=t.ex;document.getElementById('typoDelBtn').style.display='inline-block';document.getElementById('moTypo').style.display='flex';}
+function saveTypo(){const type=document.getElementById('typoType').value.trim();if(!type)return;const obj={type,ex:document.getElementById('typoEx').value};if(editTypoId){const t=st.typos.find(x=>x.id===editTypoId);if(t)Object.assign(t,obj);}else st.typos.push({id:gid(),...obj});save();renderRisk();closeMo('moTypo');toast('✓');}
+function delTypo(){if(!confirm('Supprimer ?'))return;st.typos=st.typos.filter(t=>t.id!==editTypoId);save();renderRisk();closeMo('moTypo');}
+
+// ══════════════════════════════════════════
+// COMMUNICATION
+// ══════════════════════════════════════════
+function renderComm(){
+  const fqMap={'Hebdomadaire':'fq-h','Mensuel':'fq-m','Trimestriel':'fq-t','À la demande':'fq-d'};
+  let h=`<thead><tr><th>Type</th><th>Objectif</th><th>Fréquence</th><th>Destinataires</th><th style="width:50px"></th></tr></thead><tbody>`;
+  st.comms.forEach(c=>{const fq=fqMap[c.freq]||'fq-d';h+=`<tr><td style="font-weight:500;color:var(--txb)">${esc(c.type)}</td><td>${esc(c.obj)}</td><td><span class="freq-b ${fq}">${esc(c.freq)}</span></td><td style="color:var(--mu)">${esc(c.dest)}</td><td><button class="btn-edit" onclick="openEditComm('${c.id}')">✏️</button></td></tr>`;});
+  document.getElementById('commTbl').innerHTML=h+'</tbody>';
+  let ph=`<thead><tr><th>Partie prenante</th><th>Rôle</th><th>Attentes</th><th style="width:50px"></th></tr></thead><tbody>`;
+  st.pp.forEach(p=>{ph+=`<tr><td style="font-weight:500;color:var(--txb)">${esc(p.nom)}</td><td>${esc(p.role)}</td><td style="color:var(--mu)">${esc(p.att)}</td><td><button class="btn-edit" onclick="openEditPp('${p.id}')">✏️</button></td></tr>`;});
+  document.getElementById('ppTbl').innerHTML=ph+'</tbody>';
+}
+function openAddComm(){editCommId=null;document.getElementById('moCommTi').textContent='➕ Nouvelle communication';['commType','commObj','commDest'].forEach(i=>document.getElementById(i).value='');document.getElementById('commFreq').value='Hebdomadaire';document.getElementById('commDelBtn').style.display='none';document.getElementById('commId').value='';document.getElementById('moComm').style.display='flex';}
+function openEditComm(id){const c=st.comms.find(x=>x.id===id);if(!c)return;editCommId=id;document.getElementById('moCommTi').textContent='✏️ Modifier';document.getElementById('commId').value=id;document.getElementById('commType').value=c.type;document.getElementById('commObj').value=c.obj;document.getElementById('commFreq').value=c.freq;document.getElementById('commDest').value=c.dest;document.getElementById('commDelBtn').style.display='inline-block';document.getElementById('moComm').style.display='flex';}
+function saveComm(){const type=document.getElementById('commType').value.trim();if(!type)return;const obj={type,obj:document.getElementById('commObj').value,freq:document.getElementById('commFreq').value,dest:document.getElementById('commDest').value};if(editCommId){const c=st.comms.find(x=>x.id===editCommId);if(c)Object.assign(c,obj);}else st.comms.push({id:gid(),...obj});save();renderComm();closeMo('moComm');toast('✓');}
+function delComm(){if(!confirm('Supprimer ?'))return;st.comms=st.comms.filter(c=>c.id!==editCommId);save();renderComm();closeMo('moComm');}
+function openAddPp(){editPpId=null;document.getElementById('moPpTi').textContent='➕ Nouvelle partie prenante';['ppNom','ppRole','ppAtt'].forEach(i=>document.getElementById(i).value='');document.getElementById('ppDelBtn').style.display='none';document.getElementById('ppId').value='';document.getElementById('moPp').style.display='flex';}
+function openEditPp(id){const p=st.pp.find(x=>x.id===id);if(!p)return;editPpId=id;document.getElementById('moPpTi').textContent='✏️ Modifier';document.getElementById('ppId').value=id;document.getElementById('ppNom').value=p.nom;document.getElementById('ppRole').value=p.role;document.getElementById('ppAtt').value=p.att;document.getElementById('ppDelBtn').style.display='inline-block';document.getElementById('moPp').style.display='flex';}
+function savePp(){const nom=document.getElementById('ppNom').value.trim();if(!nom)return;const obj={nom,role:document.getElementById('ppRole').value,att:document.getElementById('ppAtt').value};if(editPpId){const p=st.pp.find(x=>x.id===editPpId);if(p)Object.assign(p,obj);}else st.pp.push({id:gid(),...obj});save();renderComm();closeMo('moPp');toast('✓');}
+function delPp(){if(!confirm('Supprimer ?'))return;st.pp=st.pp.filter(p=>p.id!==editPpId);save();renderComm();closeMo('moPp');}
+
+// ── MODAL HELPERS ──
+function closeMo(id){document.getElementById(id).style.display='none';}
+function closeMoOv(e,id){if(e.target===document.getElementById(id))closeMo(id);}
+function toggleDd(e,id){e.stopPropagation();const m=document.getElementById(id);const v=m.style.display==='block';closeAllDd();if(!v)m.style.display='block';}
+function closeAllDd(){document.querySelectorAll('.ddm').forEach(m=>m.style.display='none');}
+document.addEventListener('click',closeAllDd);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.mo').forEach(m=>m.style.display='none');closeAllDd();}});
+
+function toast(msg){const c=document.getElementById('toastC');const t=document.createElement('div');t.className='toast';t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),2500);}
+
+function resetData(){if(!confirm('Remettre toutes les données par défaut ? Toutes les modifications seront perdues.'))return;localStorage.removeItem(SK);st=JSON.parse(JSON.stringify(D));renderBoard();toast('Données réinitialisées ✓');}
+
+// ── INIT ──
+renderBoard();
+</script>
+</body>
+</html>
