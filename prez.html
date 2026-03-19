@@ -167,6 +167,21 @@ p,.desc{font-size:clamp(.9rem,1.2vw,1.15rem);line-height:1.7;color:var(--text2);
 /* ── VIEWER MODE ── */
 .viewer-banner{position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,var(--accent),var(--accent2));padding:.5em;text-align:center;font-size:.75rem;font-weight:700;color:#fff;z-index:1001;display:none}
 
+/* ── REMOTE CONTROL (mobile) ── */
+.remote-ctrl{display:none;position:fixed;inset:0;flex-direction:column;justify-content:center;align-items:center;background:var(--bg);z-index:3000;padding:2em;text-align:center}
+.remote-ctrl.active{display:flex}
+.remote-ctrl h2{font-family:'DM Serif Display',serif;font-size:1.4rem;color:#fff;margin-bottom:.3em}
+.remote-ctrl .rc-slide-info{font-family:'JetBrains Mono',monospace;font-size:3rem;color:var(--accent);font-weight:700;margin:.5em 0}
+.remote-ctrl .rc-slide-title{font-size:.9rem;color:var(--text2);margin-bottom:1.5em;min-height:1.5em}
+.remote-ctrl .rc-buttons{display:flex;gap:1em;width:100%;max-width:400px}
+.remote-ctrl .rc-btn{flex:1;padding:1.5em 1em;border:none;border-radius:16px;font-size:1.2rem;font-weight:700;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;user-select:none}
+.remote-ctrl .rc-btn:active{transform:scale(.95)}
+.remote-ctrl .rc-prev{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.remote-ctrl .rc-next{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.remote-ctrl .rc-progress{width:100%;max-width:400px;height:4px;background:var(--card);border-radius:2px;margin-top:2em;overflow:hidden}
+.remote-ctrl .rc-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .3s ease}
+.remote-ctrl .rc-status{font-size:.7rem;color:var(--accent5);margin-top:1em}
+
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
   .slide{padding:6vw 5vw}
@@ -196,6 +211,19 @@ p,.desc{font-size:clamp(.9rem,1.2vw,1.15rem);line-height:1.7;color:var(--text2);
 <div class="slide-num" id="slideNum">01 / 14</div>
 <div class="p2p-status" id="p2pStatus"><div class="p2p-dot" id="p2pDot"></div><span id="p2pText">Hors ligne</span></div>
 <div class="viewer-banner" id="viewerBanner">Mode spectateur — Slides synchronisées avec le présentateur</div>
+
+<!-- REMOTE CONTROL (shown on mobile when scanning QR) -->
+<div class="remote-ctrl" id="remoteCtrl">
+  <h2>Télécommande</h2>
+  <div class="rc-slide-info" id="rcSlideNum">1 / 15</div>
+  <div class="rc-slide-title" id="rcSlideTitle"></div>
+  <div class="rc-buttons">
+    <button class="rc-btn rc-prev" id="rcPrev" onclick="remotePrev()">◀ Précédent</button>
+    <button class="rc-btn rc-next" id="rcNext" onclick="remoteNext()">Suivant ▶</button>
+  </div>
+  <div class="rc-progress"><div class="rc-progress-bar" id="rcProgress" style="width:0%"></div></div>
+  <div class="rc-status" id="rcStatus">Connexion...</div>
+</div>
 
 <div class="nav-dots" id="navDots"></div>
 
@@ -552,9 +580,14 @@ document.addEventListener('keydown', e => {
 let touchStartX = 0;
 document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
 document.addEventListener('touchend', e => {
-  if (isViewer) return;
   const diff = e.changedTouches[0].clientX - touchStartX;
-  if (Math.abs(diff) > 60) diff < 0 ? nextSlide() : prevSlide();
+  if (Math.abs(diff) < 60) return;
+  if (isViewer) {
+    // Swipe on remote control sends command to presenter
+    diff < 0 ? remoteNext() : remotePrev();
+  } else {
+    diff < 0 ? nextSlide() : prevSlide();
+  }
 });
 
 // Nav dots
@@ -607,6 +640,13 @@ function initPresenter() {
     conn.on('open', () => {
       conn.send({ type: 'slide', index: currentSlide, total: totalSlides });
     });
+    conn.on('data', data => {
+      if (data.type === 'command') {
+        if (data.action === 'next') nextSlide();
+        else if (data.action === 'prev') prevSlide();
+        else if (data.action === 'goto' && typeof data.index === 'number') updateSlide(data.index);
+      }
+    });
     conn.on('close', () => {
       connections = connections.filter(c => c !== conn);
       updateConnCount();
@@ -619,25 +659,69 @@ function initPresenter() {
   });
 }
 
+// Slide titles for the remote control display
+const slideTitles = [];
+slides.forEach(s => {
+  const h2 = s.querySelector('h2');
+  const h3 = s.querySelector('h3');
+  slideTitles.push(h2 ? h2.textContent : (h3 ? h3.textContent : ''));
+});
+
+let remoteConn = null;
+let remoteTotal = totalSlides;
+let remoteCurrent = 0;
+
+function updateRemoteUI(index, total) {
+  remoteCurrent = index;
+  remoteTotal = total;
+  document.getElementById('rcSlideNum').textContent = (index + 1) + ' / ' + total;
+  document.getElementById('rcSlideTitle').textContent = slideTitles[index] || '';
+  document.getElementById('rcProgress').style.width = ((index + 1) / total * 100) + '%';
+  document.getElementById('rcPrev').disabled = (index === 0);
+  document.getElementById('rcNext').disabled = (index === total - 1);
+  document.getElementById('rcPrev').style.opacity = index === 0 ? '.4' : '1';
+  document.getElementById('rcNext').style.opacity = index === total - 1 ? '.4' : '1';
+}
+
+function remoteNext() {
+  if (remoteConn && remoteConn.open && remoteCurrent < remoteTotal - 1) {
+    remoteConn.send({ type: 'command', action: 'next' });
+  }
+}
+function remotePrev() {
+  if (remoteConn && remoteConn.open && remoteCurrent > 0) {
+    remoteConn.send({ type: 'command', action: 'prev' });
+  }
+}
+
 function initViewer(hostId) {
   isViewer = true;
-  document.getElementById('viewerBanner').style.display = 'block';
+  // Hide the main presentation, show remote control UI
+  document.getElementById('presentation').style.display = 'none';
   document.getElementById('toolbar').style.display = 'none';
-  document.body.style.paddingTop = '2em';
+  document.getElementById('navDots').style.display = 'none';
+  document.getElementById('slideNum').style.display = 'none';
+  document.getElementById('progressBar').style.display = 'none';
+  document.getElementById('p2pStatus').style.display = 'none';
+  document.getElementById('remoteCtrl').classList.add('active');
 
   peer = new Peer();
   peer.on('open', () => {
     const conn = peer.connect(hostId);
+    remoteConn = conn;
     conn.on('open', () => {
-      document.getElementById('p2pDot').classList.add('connected');
-      document.getElementById('p2pText').textContent = 'Connecté au présentateur';
+      document.getElementById('rcStatus').textContent = 'Connecté au présentateur';
+      document.getElementById('rcStatus').style.color = 'var(--accent5)';
     });
     conn.on('data', data => {
-      if (data.type === 'slide') updateSlide(data.index, false);
+      if (data.type === 'slide') {
+        updateRemoteUI(data.index, data.total);
+      }
     });
     conn.on('close', () => {
-      document.getElementById('p2pDot').classList.remove('connected');
-      document.getElementById('p2pText').textContent = 'Déconnecté';
+      document.getElementById('rcStatus').textContent = 'Déconnecté';
+      document.getElementById('rcStatus').style.color = 'var(--accent4)';
+      remoteConn = null;
     });
   });
 }
